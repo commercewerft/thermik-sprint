@@ -272,10 +272,19 @@ function air(x){
 
 /* ---------- audio vario ---------- */
 var AC=null,osc=null,gain=null,soundOn=false,beep=0;
+var noiseFilt=null,noiseGain=null;
 function initAudio(){
   if(AC||!soundOn)return;
   try{AC=new (window.AudioContext||window.webkitAudioContext)();osc=AC.createOscillator();gain=AC.createGain();
-    osc.type='sine';gain.gain.value=0;osc.connect(gain);gain.connect(AC.destination);osc.start();}catch(e){AC=null}
+    osc.type='sine';gain.gain.value=0;osc.connect(gain);gain.connect(AC.destination);osc.start();
+    /* wind noise: looped white noise -> bandpass -> gain, both follow airspeed */
+    var len=AC.sampleRate*2,buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+    for(var i=0;i<len;i++)d[i]=Math.random()*2-1;
+    var src=AC.createBufferSource();src.buffer=buf;src.loop=true;
+    noiseFilt=AC.createBiquadFilter();noiseFilt.type='bandpass';noiseFilt.frequency.value=450;noiseFilt.Q.value=0.55;
+    noiseGain=AC.createGain();noiseGain.gain.value=0;
+    src.connect(noiseFilt);noiseFilt.connect(noiseGain);noiseGain.connect(AC.destination);src.start();
+  }catch(e){AC=null}
 }
 function audioTick(dt){
   if(!AC)return;var target=0,f=400;
@@ -284,6 +293,16 @@ function audioTick(dt){
     else if(S.vario<-2){f=210;target=0.035;}
   }
   osc.frequency.setTargetAtTime(f,AC.currentTime,0.02);gain.gain.setTargetAtTime(target,AC.currentTime,0.015);
+  if(noiseGain){
+    var nv=0,nf=420;
+    if(soundOn&&S.mode==='fly'&&!document.hidden){
+      var vv=S.circ?95:S.v,k=(vv-80)/140;            /* 0 at 80 km/h, 1 at 220 */
+      nv=0.015+k*k*0.14;
+      nf=380+k*1500;
+    }
+    noiseFilt.frequency.setTargetAtTime(nf,AC.currentTime,0.1);
+    noiseGain.gain.setTargetAtTime(nv,AC.currentTime,0.12);
+  }
 }
 
 /* ---------- simulation (unchanged from the 2D original) ---------- */
