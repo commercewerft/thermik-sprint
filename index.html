@@ -730,7 +730,7 @@ var camPos=new THREE.Vector3(-260,1340,420),camAim=new THREE.Vector3(300,1200,0)
 function updateCamera(rdt){
   var px=glider.position.x,py=glider.position.y,pz=glider.position.z;
   /* mostly behind the glider, zoomed out: keeps it near centre even while circling in a narrow portrait FOV */
-  var want=new THREE.Vector3(px-400,Math.min(BASE+300,py+130),pz+190);
+  var want=new THREE.Vector3(px-760,Math.min(BASE+420,py+240),pz+340);
   var aim=new THREE.Vector3(px+500,py,pz-30);
   if(DEBUGCAM){want.set(px-90,py+28,pz+70);aim.set(px+60,py-4,pz)}
   var kk=Math.min(1,rdt*2.2);
