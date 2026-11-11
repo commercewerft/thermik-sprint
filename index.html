@@ -286,6 +286,28 @@ function initAudio(){
     src.connect(noiseFilt);noiseFilt.connect(noiseGain);noiseGain.connect(AC.destination);src.start();
   }catch(e){AC=null}
 }
+/* short arcade jingle: sequential square-wave notes [[hz,sec],...] on the shared context */
+function jingle(notes){
+  if(!soundOn)return; initAudio(); if(!AC)return;
+  try{
+    if(AC.state==='suspended')AC.resume();
+    var t=AC.currentTime+0.05;
+    notes.forEach(function(n){
+      var o=AC.createOscillator(),g=AC.createGain();
+      o.type='square';o.frequency.value=n[0];
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(0.07,t+0.015);
+      g.gain.setValueAtTime(0.07,Math.max(t+0.015,t+n[1]-0.04));
+      g.gain.linearRampToValueAtTime(0.0001,t+n[1]);
+      o.connect(g);g.connect(AC.destination);
+      o.start(t);o.stop(t+n[1]+0.03);
+      t+=n[1];
+    });
+  }catch(e){}
+}
+var JGL_WIN=[[523,0.12],[659,0.12],[784,0.12],[1047,0.38]];        /* C-E-G-C fanfare */
+var JGL_OUT=[[440,0.22],[415,0.22],[392,0.22],[370,0.55]];         /* sad descending */
+var JGL_LAP=[[784,0.09],[1047,0.2]];                               /* endless gate ding */
 function audioTick(dt){
   if(!AC)return;var target=0,f=400;
   if(soundOn&&S.mode==='fly'&&!document.hidden){
@@ -337,7 +359,7 @@ function step(rdt){
       trail.forEach(function(p){p.x-=COURSE});trailDirty=true;
       camPos.x-=COURSE;camAim.x-=COURSE;
       makeWeather(S.lap);buildWeatherMeshes();
-      buzz(40);
+      buzz(40);jingle(JGL_LAP);
     }else{S.mode='done';finish(true)}
   }
   else if(S.h<=0){S.h=0;S.mode='out';finish(false)}
@@ -417,16 +439,16 @@ function finish(ok){
     var avg=COURSE/S.t*3.6;
     document.getElementById('ovTitle').textContent='ZIEL! '+sc.toLocaleString('de-DE')+' PUNKTE';
     document.getElementById('ovText').textContent='Zeit '+fmtT(S.t)+', Schnitt '+de(avg,1)+' km/h, Ankunftshöhe '+Math.round(S.h)+' m.'+(S.h>300?' Die Resthöhe hättest du in Fahrt umsetzen können.':'');
-    buzz(70);
+    buzz(70);jingle(JGL_WIN);
   }else if(WX[wx].endless){
     var tot=(S.lap*COURSE+S.x)/1000;
     document.getElementById('ovTitle').textContent='ENDE NACH '+de(tot,1)+' KM — '+sc.toLocaleString('de-DE')+' PUNKTE';
     document.getElementById('ovText').textContent=(S.lap?S.lap+'× durchs EDXE-Tor und ':'')+'am Ende war der Himmel einfach leer. Weiter kommt hier keiner ohne Kampf.';
-    buzz([80,50,80]);
+    buzz([80,50,80]);jingle(JGL_OUT);
   }else{
     document.getElementById('ovTitle').textContent='AUSSENLANDUNG — '+sc.toLocaleString('de-DE')+' PUNKTE';
     document.getElementById('ovText').textContent='Außenlandung nach '+de(S.x/1000,1)+' km. Der Rückholer braucht jetzt den Hänger und etwas Geduld.';
-    buzz([80,50,80]);
+    buzz([80,50,80]);jingle(JGL_OUT);
   }
   var a=curList(),qualifies=a.length<10||sc>a[a.length-1].sc;
   if(sc>0&&qualifies){
