@@ -279,9 +279,12 @@ function step(rdt){
   S.h=Math.min(BASE,S.h+vz*dt);S.x+=vxm*dt;S.t+=dt;
   if(S.circ)S.phase+=rdt*5;
   var lift=a>1.0; if(lift&&!S.inLift)buzz(18); S.inLift=lift;
+  var gx=S.circ?S.ccx+Math.sin(S.phase)*CIRCR:S.x,
+      gz=S.circ?Math.cos(S.phase)*CIRCR:0;
   var last=trail[trail.length-1];
-  if(!last||S.x-last.x>120||Math.abs(S.h-last.h)>12){trail.push({x:S.x,h:S.h});trailDirty=true;
-    if(trail.length>600)trail.shift();}
+  if(!last||Math.hypot(gx-last.x,gz-last.z)>(S.circ?13:120)||Math.abs(S.h-last.h)>12){
+    trail.push({x:gx,h:S.h,z:gz});trailDirty=true;
+    if(trail.length>TRAILN-2)trail.shift();}
   if(S.x>=COURSE){S.mode='done';finish(true)}
   else if(S.h<=0){S.h=0;S.mode='out';finish(false)}
 }
@@ -703,7 +706,7 @@ var shadow=new THREE.Group();
 scene.add(shadow);
 
 /* flight trail: a vertical ribbon so it reads as a thick line (WebGL ignores linewidth) */
-var TRAILN=602,TRAILW=1.5;
+var TRAILN=1600,TRAILW=1.5;
 var trailGeo=new THREE.BufferGeometry();
 trailGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(TRAILN*2*3),3));
 (function(){
@@ -719,9 +722,9 @@ var trailLine=new THREE.Mesh(trailGeo,new THREE.MeshBasicMaterial({color:0xff7a1
 trailLine.frustumCulled=false;scene.add(trailLine);
 function updateTrail(){
   var p=trailGeo.attributes.position,n=0;
-  function put(x,h){p.setXYZ(n*2,x,h-TRAILW,0);p.setXYZ(n*2+1,x,h+TRAILW,0);n++}
-  for(var i=0;i<trail.length&&n<TRAILN-1;i++)put(trail[i].x,trail[i].h);
-  put(S.x,S.h);
+  function put(x,h,z){p.setXYZ(n*2,x,h-TRAILW,z);p.setXYZ(n*2+1,x,h+TRAILW,z);n++}
+  for(var i=0;i<trail.length&&n<TRAILN-1;i++)put(trail[i].x,trail[i].h,trail[i].z||0);
+  put(glider.position.x,S.h,glider.position.z);
   trailGeo.setDrawRange(0,(n-1)*6);p.needsUpdate=true;
 }
 
