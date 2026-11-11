@@ -44,14 +44,19 @@ canvas{position:absolute;inset:0;display:block;width:100%;height:100%;touch-acti
 .tools button{font-size:14px;padding:0 12px;min-height:40px;background:rgba(18,32,46,.72);border-color:rgba(255,255,255,.25)}
 .overlay{position:absolute;inset:0;z-index:2;display:flex;padding:12px;background:rgba(6,10,20,.6);overflow:auto;touch-action:pan-y}
 .overlay[hidden]{display:none}
-.card{margin:auto;background:var(--arcade-bg);border:2px solid var(--arcade-border);border-radius:8px;
-  padding:18px;max-width:480px;width:100%;display:flex;flex-direction:column;gap:12px;
-  box-shadow:0 0 0 2px #000,0 0 40px rgba(77,232,255,.12)}
-.card h2{font-family:var(--retro);font-size:16px;line-height:1.5;color:var(--arcade-gold);margin:0;text-wrap:balance;
-  text-shadow:2px 2px 0 #7a3c00}
-.card p{margin:0;color:#c6d4df;font-size:15px}
-.card ul{margin:0;padding-left:18px;color:#c6d4df;font-size:14px}
+.card{margin:auto;background:var(--arcade-bg);border:2px solid var(--arcade-border);border-radius:10px;
+  padding:24px 26px;max-width:620px;width:100%;display:flex;flex-direction:column;gap:16px;
+  box-shadow:0 0 0 2px #000,0 0 50px rgba(77,232,255,.14)}
+.card h2{font-family:var(--retro);font-size:17px;line-height:1.55;color:var(--arcade-gold);margin:0;text-wrap:balance;
+  text-align:center;text-shadow:2px 2px 0 #7a3c00}
+.card p{margin:0;color:#c6d4df;font-size:15px;text-align:center;text-wrap:balance}
+.sec{font-family:var(--retro);font-size:9px;letter-spacing:.18em;color:var(--arcade-cyan);
+  margin:2px 0 -8px;text-align:center}
+.card ul{margin:0;padding:10px 0 0;border-top:1px solid var(--arcade-border);list-style:none;
+  display:grid;grid-template-columns:1fr 1fr;gap:5px 18px;color:var(--muted);font-size:13px;line-height:1.45}
+.card ul li::before{content:'▸ ';color:var(--arcade-cyan)}
 .card ul[hidden],.card li[hidden]{display:none}
+#start{width:100%;min-height:58px;font-size:22px;letter-spacing:.06em}
 kbd{font-family:var(--display);font-weight:600;background:var(--panel-2);border:1px solid #35516c;border-radius:4px;padding:0 6px}
 .row{display:flex;flex-wrap:wrap;gap:10px}
 /* level picker */
@@ -147,6 +152,7 @@ button.held{background:#2a4660;border-color:var(--ink)}
       <div class="card">
         <h2 id="ovTitle">Thermik-Sprint 50&nbsp;km</h2>
         <p id="ovText">50 km über das Münsterland nach Rheine-Eschendorf, Anflug über Nordhorn-Lingen. Unter jeder Wolke steht ein Bart.</p>
+        <div class="sec">— LEVEL —</div>
         <div class="wx" id="wx" role="group" aria-label="Level wählen">
           <button data-wx="0" aria-pressed="false"><em>L1</em>Hammer<br>4,5 m/s</button>
           <button data-wx="1" aria-pressed="true"><em>L2</em>Gut<br>3,3 m/s</button>
@@ -155,13 +161,9 @@ button.held{background:#2a4660;border-color:var(--ink)}
           <button data-wx="4" aria-pressed="false"><em>L5</em>ULTRA<br>1,15 m/s</button>
           <button data-wx="5" aria-pressed="false" style="grid-column:1/-1"><em>∞ ENDLESS</em>So weit wie möglich — die Thermik wird immer zäher</button>
         </div>
-        <ul id="ovHelp">
-          <li>„Kreisen&ldquo; (oder den Himmel) gedrückt halten: kreisen und steigen</li>
-          <li>Langsamer / Schneller halten: schneller kostet Höhe</li>
-          <li>Die Wolkenbasis deckelt das Steigen — je zäher der Tag, desto niedriger hängt sie</li>
-          <li>Hinter Nordhorn-Lingen ist der Himmel blau: 29 km Endanflug ins Ziel</li>
-          <li id="kbHint" hidden>Tastatur: <kbd>↑</kbd> <kbd>↓</kbd> Fahrt, <kbd>Leertaste</kbd> kreisen</li>
-        </ul>
+        <div class="row">
+          <button class="primary" id="start">Losfliegen</button>
+        </div>
         <form id="iniForm" hidden>
           <label for="pini">Deine Initialen</label>
           <div class="row">
@@ -175,9 +177,13 @@ button.held{background:#2a4660;border-color:var(--ink)}
           <ol id="board"></ol>
           <small id="boardNote"></small>
         </div>
-        <div class="row">
-          <button class="primary" id="start">Losfliegen</button>
-        </div>
+        <ul id="ovHelp">
+          <li>„Kreisen&ldquo; (oder den Himmel) gedrückt halten: kreisen und steigen</li>
+          <li>Langsamer / Schneller halten: schneller kostet Höhe</li>
+          <li>Die Wolkenbasis deckelt das Steigen — zähe Tage hängen tiefer</li>
+          <li>Hinter Nordhorn-Lingen: 29 km blauer Endanflug ins Ziel</li>
+          <li id="kbHint" hidden>Tastatur: <kbd>↑</kbd> <kbd>↓</kbd> Fahrt, <kbd>Leertaste</kbd> kreisen</li>
+        </ul>
       </div>
     </div>
   </div>
