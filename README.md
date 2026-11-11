@@ -32,6 +32,10 @@ Drei feste Wettermodelle, jeweils mit identischen Bärten bei jedem Start:
 
 Arcade-Bestenliste wie in den 80ern: drei Initialen, Top 10, pro Wettermodell eine
 eigene Liste. Punkte = Schnittgeschwindigkeit × 1000 + Resthöhe im Ziel; eine
-Außenlandung bringt 250 Punkte pro geflogenem Kilometer. Gespeichert wird lokal
-im `localStorage` — die Punkte werden im Browser gemessen und sind nicht
+Außenlandung bringt 250 Punkte pro geflogenem Kilometer.
+
+Liegt `scores.php` mit auf einem PHP-fähigen Server, ist die Liste **gemeinsam für
+alle Spieler** (Ablage in `scores.json` neben dem Skript, mit Plausibilitätsprüfung
+der gemeldeten Punkte). Ohne PHP-Backend fällt das Spiel automatisch auf eine lokale
+Liste im `localStorage` zurück. Die Punkte werden im Browser gemessen und sind nicht
 manipulationssicher.

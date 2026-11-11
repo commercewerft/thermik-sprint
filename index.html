@@ -266,21 +266,31 @@ function step(rdt){
   else if(S.h<=0){S.h=0;S.mode='out';finish(false)}
 }
 
-/* ---------- arcade highscores, per weather model ---------- */
+/* ---------- arcade highscores, per weather model ----------
+   shared via scores.php + JSON on the server; localStorage when no backend answers */
 var pendingScore=null;
+var API='scores.php',remote={ok:false,lists:{}};
 function hsKey(){return 'thermik3d-hs-'+wx}
 function loadHS(){try{var a=JSON.parse(localStorage.getItem(hsKey()));return Array.isArray(a)?a.filter(function(e){
   return e&&typeof e.ini==='string'&&isFinite(e.sc)}):[]}catch(e){return []}}
 function saveHS(a){try{localStorage.setItem(hsKey(),JSON.stringify(a.slice(0,10)))}catch(e){}}
+function curList(){return remote.ok&&Array.isArray(remote.lists[wx])?remote.lists[wx]:loadHS()}
+function fetchScores(){
+  fetch(API+'?wx='+wx,{cache:'no-store'}).then(function(r){
+    if(!r.ok)throw 0;return r.json();
+  }).then(function(j){
+    if(j&&Array.isArray(j.scores)){remote.lists[wx]=j.scores;remote.ok=true;renderBoard();showBest()}
+  }).catch(function(){});
+}
 function calcScore(ok){
   if(ok){var avg=COURSE/S.t*3.6;return Math.round(avg*1000)+Math.round(S.h)}
   return Math.round(S.x/1000*250);
 }
-function showBest(){var a=loadHS();document.getElementById('best').textContent=
+function showBest(){var a=curList();document.getElementById('best').textContent=
   WX[wx].name+(a.length?' · Rekord '+a[0].sc.toLocaleString('de-DE')+' ('+a[0].ini+')':'')}
 function renderBoard(hl){
   document.getElementById('boardTitle').textContent='★ HIGH SCORES · '+WX[wx].name.toUpperCase()+' ★';
-  var ol=document.getElementById('board'),a=loadHS();ol.textContent='';
+  var ol=document.getElementById('board'),a=curList();ol.textContent='';
   if(!a.length){var li=document.createElement('li');li.className='empty';li.textContent='NOCH KEIN EINTRAG — FLIEG DIE ERSTE RUNDE';ol.appendChild(li)}
   a.slice(0,10).forEach(function(e,i){
     var li=document.createElement('li');
@@ -291,13 +301,24 @@ function renderBoard(hl){
     var tm=document.createElement('span');tm.className='tm';tm.textContent=e.t?fmtT(e.t):'DNF';
     li.appendChild(rk);li.appendChild(ini);li.appendChild(sc);li.appendChild(tm);ol.appendChild(li);
   });
-  document.getElementById('boardNote').textContent='TOP 10 AUF DIESEM GERÄT · PUNKTE = SCHNITT × 1000 + RESTHÖHE';
+  document.getElementById('boardNote').textContent=(remote.ok?
+    'GEMEINSAME TOP 10 FÜR ALLE SPIELER':'TOP 10 AUF DIESEM GERÄT')+' · PUNKTE = SCHNITT × 1000 + RESTHÖHE';
+}
+function submitLocal(ini,sc,t){
+  var a=loadHS();a.push({ini:ini,sc:sc,t:t});
+  a.sort(function(x,y){return y.sc-x.sc});a=a.slice(0,10);saveHS(a);
+  var idx=-1;a.forEach(function(e,i){if(idx<0&&e.ini===ini&&e.sc===sc)idx=i});
+  renderBoard(idx);showBest();
 }
 function submitScore(ini){
-  var a=loadHS();a.push({ini:ini,sc:pendingScore.sc,t:pendingScore.t});
-  a.sort(function(x,y){return y.sc-x.sc});a=a.slice(0,10);saveHS(a);
-  var idx=-1;a.forEach(function(e,i){if(idx<0&&e.ini===ini&&e.sc===pendingScore.sc)idx=i});
-  pendingScore=null;renderBoard(idx);showBest();
+  var sc=pendingScore.sc,t=pendingScore.t;pendingScore=null;
+  if(!remote.ok){submitLocal(ini,sc,t);return}
+  fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({wx:wx,ini:ini,sc:sc,t:t})
+  }).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
+    if(j&&Array.isArray(j.scores)){remote.lists[wx]=j.scores;renderBoard(typeof j.rank==='number'?j.rank:undefined);showBest()}
+    else throw 0;
+  }).catch(function(){remote.ok=false;submitLocal(ini,sc,t)});
 }
 document.getElementById('iniForm').addEventListener('submit',function(e){
   e.preventDefault();var inp=document.getElementById('pini'),ini=inp.value.toUpperCase().replace(/[^A-Z0-9ÄÖÜ]/g,'').slice(0,3);
@@ -323,7 +344,7 @@ function finish(ok){
     document.getElementById('ovText').textContent='Außenlandung nach '+de(S.x/1000,1)+' km. Der Rückholer braucht jetzt den Hänger und etwas Geduld.';
     buzz([80,50,80]);
   }
-  var a=loadHS(),qualifies=a.length<10||sc>a[a.length-1].sc;
+  var a=curList(),qualifies=a.length<10||sc>a[a.length-1].sc;
   if(sc>0&&qualifies){
     pendingScore={sc:sc,t:ok?Math.round(S.t):0};
     document.getElementById('iniForm').hidden=false;document.getElementById('saveIni').disabled=false;
@@ -336,11 +357,26 @@ function finish(ok){
 /* ========== three.js world ========== */
 var renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
 renderer.setClearColor(0x79b6e8);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
 var scene=new THREE.Scene();
 scene.fog=new THREE.FogExp2(0xaed4ec,0.0001);
-var camera=new THREE.PerspectiveCamera(55,16/9,1,30000);
+var camera=new THREE.PerspectiveCamera(55,16/9,1,60000);
 scene.add(new THREE.HemisphereLight(0xbfe3ff,0x5a7a4a,0.9));
-var sun=new THREE.DirectionalLight(0xfff3dd,1.6);sun.position.set(-0.4,1,0.55);scene.add(sun);
+var sunDir=new THREE.Vector3(-0.4,1,0.55).normalize();
+var sun=new THREE.DirectionalLight(0xfff3dd,1.6);sun.position.copy(sunDir);scene.add(sun);
+
+/* sky dome: gradient + sun glow, follows the camera */
+var skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,
+  uniforms:{sunDir:{value:sunDir}},
+  vertexShader:'varying vec3 vDir;void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader:'varying vec3 vDir;uniform vec3 sunDir;void main(){'+
+    'float h=clamp(vDir.y,0.0,1.0);'+
+    'vec3 col=mix(vec3(0.78,0.88,0.96),vec3(0.21,0.47,0.78),pow(h,0.55));'+
+    'float s=max(dot(vDir,sunDir),0.0);'+
+    'col+=vec3(1.0,0.93,0.78)*pow(s,350.0)*1.6+vec3(1.0,0.85,0.6)*pow(s,8.0)*0.12;'+
+    'gl_FragColor=vec4(col,1.0);}'});
+var skyDome=new THREE.Mesh(new THREE.SphereGeometry(42000,24,16),skyMat);
+skyDome.renderOrder=-1;scene.add(skyDome);
 
 /* terrain: low-poly field patchwork along the course, hills further out */
 function buildTerrain(){
@@ -366,6 +402,30 @@ function buildTerrain(){
   scene.add(new THREE.Mesh(geo,mat));
 }
 buildTerrain();
+
+/* scattered trees along the corridor (instanced, cheap) */
+(function(){
+  var N=700,r=rng(4242);
+  var trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(1.6,2.2,14,5),
+    new THREE.MeshLambertMaterial({color:0x6b4a2b,flatShading:true}),N);
+  var crown=new THREE.InstancedMesh(new THREE.ConeGeometry(9,26,6),
+    new THREE.MeshLambertMaterial({color:0x2f6b35,flatShading:true}),N);
+  var m=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),sc=new THREE.Vector3();
+  var col=new THREE.Color();
+  for(var i=0;i<N;i++){
+    var x=r()*(COURSE+4000)-2000;
+    var z=(140+r()*1400)*(r()<0.5?-1:1);
+    if(x>COURSE-600&&x<COURSE+1000&&Math.abs(z)<260){i--;continue}   /* keep the airfield clear */
+    var s=0.8+r()*1.6;
+    q.setFromAxisAngle(up,r()*6.28);
+    sc.set(s,s*(0.85+r()*0.5),s);
+    m.compose(new THREE.Vector3(x,7*sc.y,z),q,sc);trunk.setMatrixAt(i,m);
+    m.compose(new THREE.Vector3(x,(14+13)*sc.y,z),q,sc);crown.setMatrixAt(i,m);
+    col.setHSL(0.32+r()*0.05,0.42,0.26+r()*0.12);crown.setColorAt(i,col);
+  }
+  trunk.instanceMatrix.needsUpdate=true;crown.instanceMatrix.needsUpdate=true;
+  scene.add(trunk);scene.add(crown);
+})();
 
 /* finish airfield: runway + banner */
 (function(){
@@ -417,6 +477,23 @@ function cloudBlob(str,rad){
   base.position.y=-6;g2.add(base);
   return g2;
 }
+var shadowGeo=new THREE.CircleGeometry(1,22);
+function cloudShadow(x,z,rad,str){
+  var m=new THREE.Mesh(shadowGeo,new THREE.MeshBasicMaterial({color:0x1c3022,transparent:true,
+    opacity:0.05+Math.min(0.07,str*0.02),depthWrite:false}));
+  m.rotation.x=-Math.PI/2;m.position.set(x,2.5,z);m.scale.setScalar(rad*1.05);
+  return m;
+}
+/* decorative clouds left and right of the course: scenery only, no lift */
+(function(){
+  var r=rng(9090);
+  for(var i=0;i<30;i++){
+    var str=0.7+r()*3.4,rad=380+r()*360;
+    var x=r()*(COURSE+6000)-2000,z=(1500+r()*5200)*(i%2?1:-1);
+    var cl=cloudBlob(str,rad);cl.position.set(x,BASE+40+r()*160,z);scene.add(cl);
+    if(Math.abs(z)<3600)scene.add(cloudShadow(x,z,rad,str));
+  }
+})();
 function buildWeatherMeshes(){
   while(wxGroup.children.length)wxGroup.remove(wxGroup.children[0]);
   thermals.forEach(function(T){
@@ -425,6 +502,7 @@ function buildWeatherMeshes(){
       opacity:0.04+T.str*0.012,depthWrite:false,fog:true});
     var col=new THREE.Mesh(new THREE.CylinderGeometry(T.rad*0.45,T.rad*0.7,BASE,12,1,true),colMat);
     col.position.set(T.x,BASE/2,T.z);wxGroup.add(col);
+    wxGroup.add(cloudShadow(T.x,T.z,T.rad,T.str));
   });
 }
 
@@ -480,12 +558,13 @@ function updateTrail(){
 var camPos=new THREE.Vector3(-260,1340,420),camAim=new THREE.Vector3(300,1200,0);
 function updateCamera(rdt){
   var px=glider.position.x,py=glider.position.y,pz=glider.position.z;
-  /* mostly behind the glider: a wide side offset pushes it past the narrow portrait FOV while circling */
-  var want=new THREE.Vector3(px-300,Math.min(BASE+220,py+100),pz+170);
-  var aim=new THREE.Vector3(px+500,py+30,pz-60);
+  /* mostly behind the glider, zoomed out: keeps it near centre even while circling in a narrow portrait FOV */
+  var want=new THREE.Vector3(px-400,Math.min(BASE+300,py+130),pz+190);
+  var aim=new THREE.Vector3(px+500,py,pz-30);
   var kk=Math.min(1,rdt*2.2);
   camPos.lerp(want,kk);camAim.lerp(aim,kk);
   camera.position.copy(camPos);camera.lookAt(camAim);
+  skyDome.position.copy(camPos);
 }
 function placeGlider(rdt){
   var bank=0,heading=0,px=S.x,pz=0;
@@ -497,7 +576,8 @@ function placeGlider(rdt){
     bank=0;heading=0;
   }
   glider.position.set(px,S.h,pz);
-  var pitch=S.circ?0:-(S.v-100)*0.0028;
+  /* nose follows the actual glide path (vario vs. forward speed), exaggerated for readability */
+  var pitch=S.circ?0:Math.max(-0.42,Math.min(0.3,Math.atan2(S.vario,S.v/3.6)*3.2));
   glider.rotation.set(0,-heading,0);
   glider.rotateZ(pitch);glider.rotateX(bank);
   shadow.position.set(px,1.5,pz);
@@ -556,7 +636,7 @@ document.getElementById('wx').addEventListener('click',function(e){
     wx===1?'ein normaler Streckentag, nicht jeder Bart lohnt sich.':
     'kräftige Bärte dicht an dicht — Vollgas, die Basis ist schnell wieder da.');
   document.getElementById('start').textContent='Losfliegen';
-  renderBoard();showBest();
+  renderBoard();showBest();fetchScores();
 });
 window.addEventListener('keydown',function(e){
   if(e.target&&e.target.tagName==='INPUT')return;
@@ -594,7 +674,7 @@ if(!touch&&!('ontouchstart' in window)&&!(navigator.maxTouchPoints>0))document.g
 
 if(window.ResizeObserver)new ResizeObserver(resize).observe(stage);
 window.addEventListener('resize',resize);window.addEventListener('orientationchange',function(){setTimeout(resize,200)});
-makeWeather();buildWeatherMeshes();reset();resize();showBest();renderBoard();requestAnimationFrame(frame);
+makeWeather();buildWeatherMeshes();reset();resize();showBest();renderBoard();fetchScores();requestAnimationFrame(frame);
 </script>
 </body>
 </html>
