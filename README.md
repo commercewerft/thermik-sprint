@@ -1,9 +1,11 @@
-# Thermik-Sprint 50 km
+# Thermik-Sprint 3D
 
-Kleiner Streckenflug-Simulator für den Browser. Fliege 50 km so schnell wie möglich:
-Kreise in Thermikbärten, gleite zwischen den Wolken und komm mit Endanflughöhe ins Ziel.
+Kleiner Streckenflug-Simulator für den Browser, jetzt in 3D (three.js). Fliege 50 km
+so schnell wie möglich: Kreise in Thermikbärten, gleite zwischen den Low-Poly-Wolken
+und komm mit Endanflughöhe ins Ziel.
 
-Eine einzige Datei, kein Build, keine Abhängigkeiten. `index.html` im Browser öffnen.
+Eine einzige Datei, kein Build. three.js wird als ES-Modul vom CDN geladen —
+`index.html` braucht also einmalig eine Internetverbindung.
 
 ## Bedienung
 
@@ -16,11 +18,20 @@ Eine einzige Datei, kein Build, keine Abhängigkeiten. `index.html` im Browser �
 - Schneller fliegen kostet Höhe (Polare grob eines Doppelsitzers, Gleitzahl ca. 43).
 - Um jeden Bart liegt ein Ring aus Sinken. Nicht jeder Bart lohnt sich.
 - Der Endanflugrechner zeigt, ob die Höhe bis ins Ziel reicht.
-- Die Zeit läuft 20-fach beschleunigt. Jede Wetternummer erzeugt dieselben Bärte.
+- Die Zeit läuft 20-fach beschleunigt.
 
-## Bestenliste
+## Wetter
 
-Zeiten werden pro Wetter gespeichert. Im Browser-Spiel liegen sie lokal im `localStorage`.
-In der gehosteten Claude-Artifact-Version nutzt die Liste zusätzlich eine gemeinsame Datenbank;
-diese Anbindung greift nur dort, außerhalb davon fällt das Spiel automatisch auf die lokale Liste zurück.
-Die Zeiten werden im Browser gemessen und sind nicht manipulationssicher.
+Drei feste Wettermodelle, jeweils mit identischen Bärten bei jedem Start:
+
+- **Wenig Thermik** — wenige, schwache Bärte mit großen Lücken. Geduldsspiel.
+- **Mittlere Thermik** — ein normaler Streckentag.
+- **Starke Thermik** — kräftige Bärte dicht an dicht. Vollgas.
+
+## Highscores
+
+Arcade-Bestenliste wie in den 80ern: drei Initialen, Top 10, pro Wettermodell eine
+eigene Liste. Punkte = Schnittgeschwindigkeit × 1000 + Resthöhe im Ziel; eine
+Außenlandung bringt 250 Punkte pro geflogenem Kilometer. Gespeichert wird lokal
+im `localStorage` — die Punkte werden im Browser gemessen und sind nicht
+manipulationssicher.
