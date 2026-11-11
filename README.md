@@ -23,9 +23,8 @@ Eine einzige Datei, kein Build. three.js wird als ES-Modul vom CDN geladen —
   wieder auf Kurs zeigt.
 - Schneller fliegen kostet Höhe (Gleitzahl 1:38 bei ~110 km/h, bei 160 nur noch 1:26).
 - Um jeden Bart liegt ein Ring aus Sinken. Nicht jeder Bart lohnt sich.
-- Hinter EDWN Nordhorn-Lingen steht keine Thermik mehr: 29 km blauer Endanflug,
-  der je nach Fahrt gut 800–1000 m Höhe braucht. Der Endanflugrechner zeigt,
-  ob die Höhe bis ins Ziel reicht.
+- Die Bärte stehen über die ganze Strecke bis kurz vor EDXE verteilt.
+  Der Endanflugrechner zeigt, ob die Höhe bis ins Ziel reicht.
 - Die Zeit läuft 20-fach beschleunigt.
 
 ## Level

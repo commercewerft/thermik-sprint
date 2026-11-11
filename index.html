@@ -181,7 +181,7 @@ button.held{background:#2a4660;border-color:var(--ink)}
           <li>„Kreisen&ldquo; (oder den Himmel) gedrückt halten: kreisen und steigen</li>
           <li>Langsamer / Schneller halten: schneller kostet Höhe</li>
           <li>Die Wolkenbasis deckelt das Steigen — zähe Tage hängen tiefer</li>
-          <li>Hinter Nordhorn-Lingen: 29 km blauer Endanflug ins Ziel</li>
+          <li>Der Endanflugrechner zeigt, ob die Höhe bis EDXE reicht</li>
           <li id="kbHint" hidden>Tastatur: <kbd>↑</kbd> <kbd>↓</kbd> Fahrt, <kbd>Leertaste</kbd> kreisen</li>
         </ul>
       </div>
@@ -253,8 +253,7 @@ function makeWeather(lap){
     }
     return;
   }
-  var lastX=(MAP.edwnX||20800)-600;      /* no lift beyond EDWN: ~29 km final glide, ~1000 m needed */
-  while(x<lastX){
+  while(x<COURSE-1500){
     thermals.push({x:x,z:(r()-0.5)*600,str:P.str,rad:P.rad,ph:r()*6});
     x+=P.gapMin+r()*P.gapVar;
   }
@@ -715,14 +714,6 @@ function buildWeatherMeshes(){
     var x=r()*(COURSE+6000)-2000,z=(1500+r()*5200)*(i%2?1:-1);
     var cl=cloudBlob(str,rad,i+100);cl.position.set(x,BASE+30+r()*150,z);wxGroup.add(cl);
     if(Math.abs(z)<3600)wxGroup.add(cloudShadow(x,z,rad,str));
-  }
-  /* a few greyish clouds beside the final-glide section, clearly OFF the course line,
-     so the sky beyond EDWN does not look chopped off (no lift under them) */
-  for(var k=0;k<9;k++){
-    var fx=(MAP.edwnX||20800)+1500+r()*(COURSE-(MAP.edwnX||20800)+2000);
-    var fz=(750+r()*1300)*(k%2?1:-1);
-    var fc=cloudBlob(1.2,320+r()*220,k+400);fc.position.set(fx,BASE+60+r()*140,fz);wxGroup.add(fc);
-    wxGroup.add(cloudShadow(fx,fz,350,1.0));
   }
 }
 
