@@ -31,9 +31,7 @@ Eine einzige Datei, kein Build. three.js wird als ES-Modul vom CDN geladen —
 ## Level
 
 Fünf feste Level. Innerhalb eines Levels hat **jeder Bart dieselbe Stärke**, und die
-Bärte stehen bei jedem Start an denselben Stellen. Einzige Ausnahme: über **EDWN
-steht immer der beste Bart des Tages** (25 % stärker und breiter) — der Hausbart
-auf halber Strecke lohnt sich in jedem Level. Mit dem Level sinken Starthöhe
+Bärte stehen bei jedem Start an denselben Stellen. Mit dem Level sinken Starthöhe
 und Wolkenbasis — ein zäher Tag hängt tiefer:
 
 | Level | Steigen | Start | Basis | Charakter |

@@ -253,22 +253,12 @@ function makeWeather(lap){
       thermals.push({x:x,z:(r()-0.5)*600,str:str,rad:rad,ph:r()*6});
       x+=1900+tot*28+r()*(700+tot*14);
     }
-    var tE=((lap||0)*COURSE+(MAP.edwnX||20800))/1000;
-    edwnBart(Math.max(0.95,4.2-tE*0.03)*1.25,Math.max(380,680-tE*2.4)*1.2);
     return;
   }
   while(x<COURSE-1500){
     thermals.push({x:x,z:(r()-0.5)*600,str:P.str,rad:P.rad,ph:r()*6});
     x+=P.gapMin+r()*P.gapVar;
   }
-  edwnBart(P.str*1.25,P.rad*1.2);
-}
-/* over EDWN there is always the best thermal of the day: +25 % strength, wider core */
-function edwnBart(str,rad){
-  var X=MAP.edwnX||20800;
-  thermals=thermals.filter(function(T){return Math.abs(T.x-X)>rad*1.6});
-  thermals.push({x:X,z:0,str:str,rad:rad,ph:2,edwn:true});
-  thermals.sort(function(a,b){return a.x-b.x});
 }
 function reset(){S={x:0,lap:0,h:WX[wx].h0,v:110,t:0,vario:-0.7,circ:false,phase:0,ccx:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
 var CIRCR=42;
@@ -715,18 +705,13 @@ function cloudMat(key,col,emi){
   if(!cloudMats[key])cloudMats[key]=new THREE.MeshLambertMaterial({color:col,emissive:emi,flatShading:true});
   return cloudMats[key];
 }
-function cloudBlob(str,rad,seed,dark){
-  var grey=str<1.6&&!dark;
+function cloudBlob(str,rad,seed){
+  var grey=str<1.6;
   var g2=new THREE.Group();
   /* emissive floor so the hemisphere light's green ground tint never darkens cloud undersides */
   var mat=cloudMat(grey?'g':'w',grey?0xd6dee6:0xffffff,grey?0x6e7a86:0x8d99a6);
   var hi=cloudMat('hi',0xffffff,0xa8b4c0);
   var flat=cloudMat('fl',grey?0x9aa8b6:0xaabed2,0x5c6772);
-  if(dark){
-    /* the EDWN house cloud: fat, dark underside, still bright on top */
-    mat=cloudMat('dkw',0xb6c2ce,0x515e6c);
-    flat=cloudMat('dkf',0x667484,0x333d4a);
-  }
   var r=rng(Math.round(str*997+rad+(seed||0)*7717));
   /* wide soft base lumps */
   var n=grey?4:6;
@@ -765,7 +750,7 @@ function buildWeatherMeshes(){
   while(wxGroup.children.length)wxGroup.remove(wxGroup.children[0]);
   thermals.forEach(function(T,i){
     /* base sits just above 1700 m: at BASE you scrape along right under the cloud */
-    var cl=cloudBlob(T.str,T.rad,i,T.edwn);cl.position.set(T.x,BASE+25,T.z);wxGroup.add(cl);
+    var cl=cloudBlob(T.str,T.rad,i);cl.position.set(T.x,BASE+25,T.z);wxGroup.add(cl);
     var colMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,
       opacity:0.04+T.str*0.012,depthWrite:false,fog:true});
     var col=new THREE.Mesh(new THREE.CylinderGeometry(T.rad*0.45,T.rad*0.7,BASE,12,1,true),colMat);
