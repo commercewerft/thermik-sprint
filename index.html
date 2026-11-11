@@ -251,12 +251,22 @@ function makeWeather(lap){
       thermals.push({x:x,z:(r()-0.5)*600,str:str,rad:rad,ph:r()*6});
       x+=1900+tot*28+r()*(700+tot*14);
     }
+    var tE=((lap||0)*COURSE+(MAP.edwnX||20800))/1000;
+    edwnBart(Math.max(0.95,4.2-tE*0.03)*1.25,Math.max(380,680-tE*2.4)*1.2);
     return;
   }
   while(x<COURSE-1500){
     thermals.push({x:x,z:(r()-0.5)*600,str:P.str,rad:P.rad,ph:r()*6});
     x+=P.gapMin+r()*P.gapVar;
   }
+  edwnBart(P.str*1.25,P.rad*1.2);
+}
+/* over EDWN there is always the best thermal of the day: +25 % strength, wider core */
+function edwnBart(str,rad){
+  var X=MAP.edwnX||20800;
+  thermals=thermals.filter(function(T){return Math.abs(T.x-X)>rad*1.6});
+  thermals.push({x:X,z:0,str:str,rad:rad,ph:2});
+  thermals.sort(function(a,b){return a.x-b.x});
 }
 function reset(){S={x:0,lap:0,h:WX[wx].h0,v:110,t:0,vario:-0.7,circ:false,phase:0,ccx:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
 var CIRCR=42;
@@ -308,6 +318,7 @@ function jingle(notes){
 var JGL_WIN=[[523,0.12],[659,0.12],[784,0.12],[1047,0.38]];        /* C-E-G-C fanfare */
 var JGL_OUT=[[440,0.22],[415,0.22],[392,0.22],[370,0.55]];         /* sad descending */
 var JGL_LAP=[[784,0.09],[1047,0.2]];                               /* endless gate ding */
+var JGL_START=[[392,0.1],[523,0.1],[659,0.28]];                    /* take-off: G-C-E rising */
 function audioTick(dt){
   if(!AC)return;var target=0,f=400;
   if(soundOn&&S.mode==='fly'&&!document.hidden){
@@ -926,7 +937,7 @@ function frame(ts){
 /* ---------- input ---------- */
 function resumeAudio(){initAudio();if(AC&&AC.state==='suspended'){try{AC.resume()}catch(e){}}}
 function start(){document.getElementById('iniForm').hidden=true;pendingScore=null;reset();if(DEBUGX)S.x=DEBUGX;S.mode='fly';
-  document.getElementById('overlay').hidden=true;resumeAudio();
+  document.getElementById('overlay').hidden=true;resumeAudio();jingle(JGL_START);
   try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}}
 document.getElementById('start').addEventListener('click',start);
 document.getElementById('wx').addEventListener('click',function(e){
