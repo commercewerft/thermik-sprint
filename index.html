@@ -54,11 +54,12 @@ canvas{position:absolute;inset:0;display:block;width:100%;height:100%;touch-acti
 .card ul[hidden],.card li[hidden]{display:none}
 kbd{font-family:var(--display);font-weight:600;background:var(--panel-2);border:1px solid #35516c;border-radius:4px;padding:0 6px}
 .row{display:flex;flex-wrap:wrap;gap:10px}
-/* weather picker */
-.wx{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.wx button{font-family:var(--retro);font-size:10px;line-height:1.6;padding:10px 4px;min-height:60px;
+/* level picker */
+.wx{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.wx button{font-family:var(--retro);font-size:7px;line-height:1.7;padding:8px 2px;min-height:58px;
   background:#101024;border:2px solid var(--arcade-border);border-radius:6px;color:var(--muted);text-transform:none}
-.wx button em{display:block;font-style:normal;font-size:15px;margin-bottom:4px}
+.wx button em{display:block;font-style:normal;font-size:13px;margin-bottom:4px;color:var(--ink)}
+.wx button[data-wx="4"] em{color:var(--arcade-pink)}
 .wx button[aria-pressed="true"]{border-color:var(--arcade-cyan);color:var(--arcade-cyan);
   box-shadow:0 0 12px rgba(77,232,255,.35) inset}
 /* arcade highscore board */
@@ -145,11 +146,13 @@ button.held{background:#2a4660;border-color:var(--ink)}
     <div class="overlay" id="overlay">
       <div class="card">
         <h2 id="ovTitle">Thermik-Sprint 50&nbsp;km</h2>
-        <p id="ovText">Fliege 50 km so schnell wie möglich. Unter jeder Wolke steht ein Bart, aber nicht jeder lohnt sich.</p>
-        <div class="wx" id="wx" role="group" aria-label="Wetter wählen">
-          <button data-wx="0" aria-pressed="false"><em>🌤</em>Wenig<br>Thermik</button>
-          <button data-wx="1" aria-pressed="true"><em>⛅</em>Mittlere<br>Thermik</button>
-          <button data-wx="2" aria-pressed="false"><em>🌩</em>Starke<br>Thermik</button>
+        <p id="ovText">50 km über das Münsterland nach Rheine-Eschendorf, Anflug über Nordhorn-Lingen. Unter jeder Wolke steht ein Bart.</p>
+        <div class="wx" id="wx" role="group" aria-label="Level wählen">
+          <button data-wx="0" aria-pressed="false"><em>L1</em>Hammer<br>4,0 m/s</button>
+          <button data-wx="1" aria-pressed="true"><em>L2</em>Gut<br>3,2 m/s</button>
+          <button data-wx="2" aria-pressed="false"><em>L3</em>Normal<br>2,5 m/s</button>
+          <button data-wx="3" aria-pressed="false"><em>L4</em>Zäh<br>1,8 m/s</button>
+          <button data-wx="4" aria-pressed="false"><em>L5</em>ULTRA<br>1,35 m/s</button>
         </div>
         <ul id="ovHelp">
           <li>Himmel gedrückt halten: kreisen und steigen</li>
@@ -181,7 +184,7 @@ button.held{background:#2a4660;border-color:var(--ink)}
     <div class="inst"><small>Höhe</small><b id="iH">1200<i>m</i></b></div>
     <div class="inst"><small>Fahrt</small><b id="iV">110<i>km/h</i></b></div>
     <div class="inst" id="varioBox"><small>Vario</small><b id="iVario">−0,7<i>m/s</i></b></div>
-    <div class="inst"><small>Strecke</small><b id="iX">0,0<i>km</i></b></div>
+    <div class="inst"><small>Rest</small><b id="iX">50,0<i>km</i></b></div>
     <div class="inst"><small>Zeit</small><b id="iT">00:00</b></div>
     <div class="inst" id="finalBox"><small>Endanflug</small><b id="iF">−0<i>m</i></b></div>
   </div>
@@ -193,8 +196,10 @@ button.held{background:#2a4660;border-color:var(--ink)}
   </div>
 </main>
 
+<script src="map-data.js"></script>
 <script type="module">
 import * as THREE from 'three';
+var MAP=window.MAPDATA||{forest:[],urban:[],water:[],rivers:[],edwnX:20800};
 
 var stage=document.getElementById('stage'),cv=document.getElementById('c');
 var COURSE=50000,BASE=1700,TIMEX=20;
@@ -205,21 +210,29 @@ function fmtT(t){var m=Math.floor(t/60),s=Math.floor(t%60);return(m<10?'0':'')+m
 function de(n,d){return n.toFixed(d).replace('.',',').replace('-','−')}
 function buzz(p){try{if(navigator.vibrate)navigator.vibrate(p)}catch(e){}}
 
-/* ---------- the three fixed weather models ---------- */
+/* ---------- the five levels: within a level every thermal has the SAME strength ---------- */
 var WX=[
-  {name:'Wenig Thermik', seed:101, strMin:0.9, strPow:1.6, strMul:2.2, radMin:360, radVar:220, gapMin:3300, gapVar:4200},
-  {name:'Mittlere Thermik', seed:202, strMin:0.8, strPow:1.3, strMul:3.6, radMin:420, radVar:280, gapMin:2600, gapVar:3600},
-  {name:'Starke Thermik', seed:303, strMin:1.6, strPow:1.1, strMul:4.4, radMin:480, radVar:320, gapMin:2300, gapVar:2900}
+  {name:'L1 · Hammertag',  seed:111, str:4.0,  rad:600, gapMin:2100, gapVar:1200,
+   info:'Hammertag: 4,0 m/s unter jeder Wolke, die Bärte stehen dicht. Vollgas.'},
+  {name:'L2 · Guter Tag',  seed:222, str:3.2,  rad:520, gapMin:2600, gapVar:1600,
+   info:'Guter Tag: 3,2 m/s, ordentliche Abstände. Zügig fliegen lohnt sich.'},
+  {name:'L3 · Streckentag',seed:333, str:2.5,  rad:460, gapMin:3200, gapVar:2200,
+   info:'Streckentag: 2,5 m/s, die Lücken werden größer. Höhe einteilen.'},
+  {name:'L4 · Zäher Tag',  seed:444, str:1.8,  rad:430, gapMin:4200, gapVar:2600,
+   info:'Zäher Tag: 1,8 m/s und weite Lücken. Jeder Bart muss sitzen.'},
+  {name:'L5 · ULTRA',      seed:555, str:1.35, rad:400, gapMin:5200, gapVar:2600,
+   info:'ULTRA: 1,35 m/s, riesige Lücken, kleine Bärte. Schaffbar — gerade so.'}
 ];
 var wx=1,thermals=[],S,keys={},holdCircle=false,holdStage=false,holdSlow=false,holdFast=false,trail=[];
 function makeWeather(){
   var P=WX[wx],r=rng(P.seed*1000+1);thermals=[];var x=1800+r()*1500;
   while(x<COURSE-1500){
-    thermals.push({x:x,z:(r()-0.5)*600,str:P.strMin+Math.pow(r(),P.strPow)*P.strMul,rad:P.radMin+r()*P.radVar,ph:r()*6});
+    thermals.push({x:x,z:(r()-0.5)*600,str:P.str,rad:P.rad,ph:r()*6});
     x+=P.gapMin+r()*P.gapVar;
   }
 }
-function reset(){S={x:0,h:1200,v:110,t:0,vario:-0.7,circ:false,phase:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
+function reset(){S={x:0,h:1200,v:110,t:0,vario:-0.7,circ:false,phase:0,ccx:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
+var CIRCR=42;
 function polar(v){var d=v-85;return 0.6+0.0001815*d*d}
 function air(x){
   var a=0;
@@ -252,12 +265,18 @@ function step(rdt){
   if(S.mode!=='fly')return;
   var dv=0;if(keys.ArrowUp||keys.ArrowRight||holdFast)dv+=1;if(keys.ArrowDown||keys.ArrowLeft||holdSlow)dv-=1;
   S.v=Math.max(80,Math.min(220,S.v+dv*70*rdt));
-  S.circ=!!(keys[' ']||holdCircle||holdStage);
+  var want=!!(keys[' ']||holdCircle||holdStage);
+  if(want&&!S.circ){S.circ=true;S.phase=-Math.PI/2;S.ccx=S.x+CIRCR}
+  if(S.circ&&!want){
+    /* released: fly the turn out until the nose points down course again */
+    var exit=Math.PI*2*Math.ceil((S.phase+Math.PI/2)/(Math.PI*2))-Math.PI/2;
+    if(S.phase+rdt*5>=exit){S.circ=false;S.phase=0}
+  }
   var dt=rdt*TIMEX,a=air(S.x),sink=S.circ?0.75:polar(S.v),vxm=S.circ?0:S.v/3.6;
   var vz=a-sink; if(S.h>=BASE&&vz>0)vz=0;
   S.vario+=(vz-S.vario)*Math.min(1,rdt*6);
   S.h=Math.min(BASE,S.h+vz*dt);S.x+=vxm*dt;S.t+=dt;
-  if(S.circ)S.phase+=rdt*5;else S.phase=0;
+  if(S.circ)S.phase+=rdt*5;
   var lift=a>1.0; if(lift&&!S.inLift)buzz(18); S.inLift=lift;
   var last=trail[trail.length-1];
   if(!last||S.x-last.x>120||Math.abs(S.h-last.h)>12){trail.push({x:S.x,h:S.h});trailDirty=true;
@@ -371,60 +390,126 @@ var skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:fa
   vertexShader:'varying vec3 vDir;void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
   fragmentShader:'varying vec3 vDir;uniform vec3 sunDir;void main(){'+
     'float h=clamp(vDir.y,0.0,1.0);'+
-    'vec3 col=mix(vec3(0.78,0.88,0.96),vec3(0.21,0.47,0.78),pow(h,0.55));'+
+    'vec3 col=mix(vec3(0.682,0.831,0.925),vec3(0.21,0.47,0.78),pow(h,0.55));'+
     'float s=max(dot(vDir,sunDir),0.0);'+
     'col+=vec3(1.0,0.93,0.78)*pow(s,350.0)*1.6+vec3(1.0,0.85,0.6)*pow(s,8.0)*0.12;'+
     'gl_FragColor=vec4(col,1.0);}'});
 var skyDome=new THREE.Mesh(new THREE.SphereGeometry(42000,24,16),skyMat);
 skyDome.renderOrder=-1;scene.add(skyDome);
 
-/* terrain: low-poly field patchwork along the course, hills further out */
+/* terrain: flat Münsterland, painted from real OpenStreetMap data (map-data.js).
+   Course: start SW of Nordhorn -> EDWN (km 29 to go) -> EDXE Rheine-Eschendorf. */
+var TX0=-3000,TX1=57000,TZ0=-7500,TZ1=7500,TEXW=3072,TEXH=768;
+function texU(x){return (x-TX0)/(TX1-TX0)*TEXW}
+function texV(z){return (z-TZ0)/(TZ1-TZ0)*TEXH}
+function paintPoly(g2,poly){
+  g2.beginPath();
+  for(var i=0;i<poly.length;i++){var p=poly[i];if(i)g2.lineTo(texU(p[0]),texV(p[1]));else g2.moveTo(texU(p[0]),texV(p[1]))}
+  g2.closePath();g2.fill();
+}
 function buildTerrain(){
-  var X0=-3000,X1=COURSE+6000,Z0=-9000,Z1=9000,NX=260,NZ=48;
-  var geo=new THREE.PlaneGeometry(X1-X0,Z1-Z0,NX,NZ);
-  geo.rotateX(-Math.PI/2);geo.translate((X0+X1)/2,0,(Z0+Z1)/2);
-  var pos=geo.attributes.position,col=new Float32Array(pos.count*3);
-  var cols=[[0.44,0.62,0.30],[0.53,0.68,0.33],[0.79,0.72,0.38],[0.36,0.56,0.28],[0.66,0.72,0.35],[0.48,0.60,0.24]];
-  for(var i=0;i<pos.count;i++){
-    var x=pos.getX(i),z=pos.getZ(i);
-    var d=Math.max(0,Math.abs(z)-1600)/1000;                       /* flat corridor, hills to the sides */
-    var y=d>0?(Math.sin(x*0.0009)*0.5+0.5)*60*d+Math.sin(x*0.0023+z*0.0017)*22*d:0;
-    y+=(hash(Math.round(x/257)+Math.round(z/181)*977)-0.5)*8;      /* small jitter for the low-poly look */
-    pos.setY(i,y);
-    var f=Math.floor(x/700)*31+Math.floor(z/650)*57;
-    var c=cols[Math.floor(hash(f)*cols.length)];
-    var shade=0.92+hash(f+1)*0.14;
-    col[i*3]=c[0]*shade;col[i*3+1]=c[1]*shade;col[i*3+2]=c[2]*shade;
+  var c=document.createElement('canvas');c.width=TEXW;c.height=TEXH;
+  var g2=c.getContext('2d');
+  /* field patchwork base */
+  g2.fillStyle='#7da35a';g2.fillRect(0,0,TEXW,TEXH);
+  var cols=['#6f9e4c','#86ad55','#c3b35e','#5d8f47','#a3b35a','#79a24b','#90a850'];
+  for(var fx=TX0;fx<TX1;fx+=620){for(var fz=TZ0;fz<TZ1;fz+=540){
+    var h=hash(Math.round(fx/620)*31+Math.round(fz/540)*57);
+    g2.fillStyle=cols[Math.floor(h*cols.length)];
+    g2.globalAlpha=0.55+h*0.4;
+    g2.fillRect(texU(fx),texV(fz),620/(TX1-TX0)*TEXW+1,540/(TZ1-TZ0)*TEXH+1);
+  }}
+  g2.globalAlpha=1;
+  MAP.urban.forEach(function(p){g2.fillStyle='#b7ab97';paintPoly(g2,p)});
+  MAP.forest.forEach(function(p,i){g2.fillStyle=i%2?'#3a6a3c':'#346237';paintPoly(g2,p)});
+  g2.strokeStyle='#4b8dc0';g2.lineJoin='round';g2.lineCap='round';
+  MAP.rivers.forEach(function(line){
+    g2.lineWidth=2.4;g2.beginPath();
+    for(var i=0;i<line.length;i++){if(i)g2.lineTo(texU(line[i][0]),texV(line[i][1]));else g2.moveTo(texU(line[i][0]),texV(line[i][1]))}
+    g2.stroke();
+  });
+  MAP.water.forEach(function(p){g2.fillStyle='#4b8dc0';paintPoly(g2,p)});
+  var tex=new THREE.CanvasTexture(c);tex.anisotropy=8;tex.colorSpace=THREE.SRGBColorSpace;
+  var geo=new THREE.PlaneGeometry(TX1-TX0,TZ1-TZ0,220,56);
+  geo.rotateX(-Math.PI/2);geo.translate((TX0+TX1)/2,0,0);
+  var pos=geo.attributes.position;
+  for(var i=0;i<pos.count;i++){ /* Münsterland: nearly flat, just a low-poly shimmer */
+    pos.setY(i,(hash(Math.round(pos.getX(i)/257)+Math.round(pos.getZ(i)/181)*977)-0.5)*5);
   }
-  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
   geo.computeVertexNormals();
-  var mat=new THREE.MeshLambertMaterial({vertexColors:true,flatShading:true});
-  scene.add(new THREE.Mesh(geo,mat));
+  scene.add(new THREE.Mesh(geo,new THREE.MeshLambertMaterial({map:tex,flatShading:true})));
+  /* endless ground beyond the mapped strip */
+  var far=new THREE.Mesh(new THREE.PlaneGeometry(160000,120000),
+    new THREE.MeshLambertMaterial({color:0x7da35a}));
+  far.rotation.x=-Math.PI/2;far.position.set(COURSE/2,-2,0);scene.add(far);
 }
 buildTerrain();
 
-/* scattered trees along the corridor (instanced, cheap) */
+/* point-in-polygon for scattering trees and houses into the real shapes */
+function inPoly(x,z,poly){
+  var inside=false;
+  for(var i=0,j=poly.length-1;i<poly.length;j=i++){
+    var xi=poly[i][0],zi=poly[i][1],xj=poly[j][0],zj=poly[j][1];
+    if((zi>z)!==(zj>z)&&x<(xj-xi)*(z-zi)/(zj-zi)+xi)inside=true;
+  }
+  return inside;
+}
+function scatterIn(polys,n,r,cb){
+  var boxes=polys.map(function(p){
+    var x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+    p.forEach(function(q){x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);z0=Math.min(z0,q[1]);z1=Math.max(z1,q[1])});
+    return [x0,x1,z0,z1];
+  });
+  var placed=0,tries=0;
+  while(placed<n&&tries<n*30){
+    tries++;
+    var i=Math.floor(r()*polys.length),b=boxes[i];
+    var x=b[0]+r()*(b[1]-b[0]),z=b[2]+r()*(b[3]-b[2]);
+    if(z<TZ0+150||z>TZ1-150||x<TX0||x>TX1)continue;
+    if(!inPoly(x,z,polys[i]))continue;
+    cb(x,z);placed++;
+  }
+}
 (function(){
-  var N=700,r=rng(4242);
+  var r=rng(4242);
+  /* trees inside real forests */
+  var N=1100;
   var trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(1.6,2.2,14,5),
     new THREE.MeshLambertMaterial({color:0x6b4a2b,flatShading:true}),N);
   var crown=new THREE.InstancedMesh(new THREE.ConeGeometry(9,26,6),
     new THREE.MeshLambertMaterial({color:0x2f6b35,flatShading:true}),N);
   var m=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),sc=new THREE.Vector3();
-  var col=new THREE.Color();
-  for(var i=0;i<N;i++){
-    var x=r()*(COURSE+4000)-2000;
-    var z=(140+r()*1400)*(r()<0.5?-1:1);
-    if(x>COURSE-600&&x<COURSE+1000&&Math.abs(z)<260){i--;continue}   /* keep the airfield clear */
-    var s=0.8+r()*1.6;
-    q.setFromAxisAngle(up,r()*6.28);
-    sc.set(s,s*(0.85+r()*0.5),s);
+  var col=new THREE.Color(),i=0;
+  function tree(x,z){
+    var s=0.9+r()*1.7;
+    q.setFromAxisAngle(up,r()*6.28);sc.set(s,s*(0.85+r()*0.5),s);
     m.compose(new THREE.Vector3(x,7*sc.y,z),q,sc);trunk.setMatrixAt(i,m);
-    m.compose(new THREE.Vector3(x,(14+13)*sc.y,z),q,sc);crown.setMatrixAt(i,m);
-    col.setHSL(0.32+r()*0.05,0.42,0.26+r()*0.12);crown.setColorAt(i,col);
+    m.compose(new THREE.Vector3(x,27*sc.y,z),q,sc);crown.setMatrixAt(i,m);
+    col.setHSL(0.32+r()*0.05,0.42,0.24+r()*0.12);crown.setColorAt(i,col);
+    i++;
   }
+  if(MAP.forest.length)scatterIn(MAP.forest,N,r,tree);
+  trunk.count=crown.count=i;
   trunk.instanceMatrix.needsUpdate=true;crown.instanceMatrix.needsUpdate=true;
   scene.add(trunk);scene.add(crown);
+  /* houses inside real settlements */
+  var NH=420,j=0;
+  var walls=new THREE.InstancedMesh(new THREE.BoxGeometry(14,7,10),
+    new THREE.MeshLambertMaterial({color:0xd8cfbe,flatShading:true}),NH);
+  var roofs=new THREE.InstancedMesh(new THREE.ConeGeometry(9.4,6,4),
+    new THREE.MeshLambertMaterial({color:0xa5523a,flatShading:true}),NH);
+  function house(x,z){
+    var s=0.8+r()*1.3,rot=r()*6.28;
+    q.setFromAxisAngle(up,rot);sc.set(s,s,s);
+    m.compose(new THREE.Vector3(x,3.5*s,z),q,sc);walls.setMatrixAt(j,m);
+    q.setFromAxisAngle(up,rot+Math.PI/4);
+    m.compose(new THREE.Vector3(x,(7+3)*s,z),q,sc);roofs.setMatrixAt(j,m);
+    j++;
+  }
+  if(MAP.urban.length)scatterIn(MAP.urban,NH,r,house);
+  walls.count=roofs.count=j;
+  walls.instanceMatrix.needsUpdate=true;roofs.instanceMatrix.needsUpdate=true;
+  scene.add(walls);scene.add(roofs);
 })();
 
 /* finish airfield: runway + banner */
@@ -443,11 +528,11 @@ buildTerrain();
   gate.position.set(COURSE,0,0);scene.add(gate);
 })();
 
-/* km pylons every 5 km with a text sprite */
-function kmSprite(txt){
+/* km pylons every 5 km, counting DOWN to the finish */
+function kmSprite(txt,col){
   var c=document.createElement('canvas');c.width=256;c.height=128;var x=c.getContext('2d');
-  x.font='700 72px "Barlow Condensed",sans-serif';x.textAlign='center';x.textBaseline='middle';
-  x.fillStyle='rgba(18,32,46,.85)';x.fillText(txt,128,64);
+  x.font='700 64px "Barlow Condensed",sans-serif';x.textAlign='center';x.textBaseline='middle';
+  x.fillStyle=col||'rgba(18,32,46,.85)';x.fillText(txt,128,64);
   var t=new THREE.CanvasTexture(c);t.anisotropy=4;
   var s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,fog:true}));
   s.scale.set(340,170,1);return s;
@@ -455,25 +540,59 @@ function kmSprite(txt){
 for(var k=1;k*5000<COURSE;k++){
   var py=new THREE.Mesh(new THREE.ConeGeometry(16,140,6),new THREE.MeshLambertMaterial({color:0xff7a1a}));
   py.position.set(k*5000,70,-700);scene.add(py);
-  var sp=kmSprite((k*5)+' km');sp.position.set(k*5000,250,-700);scene.add(sp);
+  var sp=kmSprite((50-k*5)+' km');sp.position.set(k*5000,250,-700);scene.add(sp);
 }
+var edxeLabel=kmSprite('ZIEL EDXE','rgba(255,122,26,.95)');
+edxeLabel.scale.set(620,310,1);edxeLabel.position.set(COURSE,560,0);scene.add(edxeLabel);
+/* EDWN Nordhorn-Lingen: the course runs right across the field */
+(function(){
+  var X=MAP.edwnX||20800;
+  var strip=new THREE.Mesh(new THREE.BoxGeometry(700,3,46),new THREE.MeshLambertMaterial({color:0x4a7a3a}));
+  strip.position.set(X,1.8,80);scene.add(strip);
+  var rw=new THREE.Mesh(new THREE.BoxGeometry(640,2,18),new THREE.MeshLambertMaterial({color:0x8e9196}));
+  rw.position.set(X,3.6,80);scene.add(rw);
+  var mast=new THREE.Mesh(new THREE.CylinderGeometry(2,2,60,6),new THREE.MeshLambertMaterial({color:0xe9f0f5}));
+  mast.position.set(X-360,30,80);scene.add(mast);
+  var sock=new THREE.Mesh(new THREE.ConeGeometry(9,30,6),new THREE.MeshLambertMaterial({color:0xff7a1a}));
+  sock.rotation.z=Math.PI/2;sock.position.set(X-375,56,80);scene.add(sock);
+  var lbl=kmSprite('EDWN','rgba(18,32,46,.9)');lbl.position.set(X,320,80);scene.add(lbl);
+})();
 
 /* clouds + thermal columns, rebuilt per weather */
 var wxGroup=new THREE.Group();scene.add(wxGroup);
-function cloudBlob(str,rad){
+var cloudMats={};
+function cloudMat(key,col,emi){
+  if(!cloudMats[key])cloudMats[key]=new THREE.MeshLambertMaterial({color:col,emissive:emi,flatShading:true});
+  return cloudMats[key];
+}
+function cloudBlob(str,rad,seed){
   var grey=str<1.6;
   var g2=new THREE.Group();
   /* emissive floor so the hemisphere light's green ground tint never darkens cloud undersides */
-  var mat=new THREE.MeshLambertMaterial({color:grey?0xd6dee6:0xffffff,emissive:grey?0x6e7a86:0x8d99a6,flatShading:true});
-  var flat=new THREE.MeshLambertMaterial({color:grey?0x96a5b4:0xaabed2,emissive:0x59646f,flatShading:true});
-  var n=grey?3:5,r=rng(Math.round(str*997+rad));
+  var mat=cloudMat(grey?'g':'w',grey?0xd6dee6:0xffffff,grey?0x6e7a86:0x8d99a6);
+  var hi=cloudMat('hi',0xffffff,0xa8b4c0);
+  var flat=cloudMat('fl',grey?0x9aa8b6:0xaabed2,0x5c6772);
+  var r=rng(Math.round(str*997+rad+(seed||0)*7717));
+  /* wide soft base lumps */
+  var n=grey?4:6;
   for(var i=0;i<n;i++){
-    var s=rad*(0.34+r()*0.3)*(grey?0.7:1);
+    var s=rad*(0.3+r()*0.26)*(grey?0.7:1);
     var m=new THREE.Mesh(new THREE.IcosahedronGeometry(s,1),mat);
-    m.position.set((r()-0.5)*rad*1.5,s*(0.25+r()*0.5)*(grey?0.4:1),(r()-0.5)*rad*0.9);
-    m.scale.y=0.55;g2.add(m);
+    m.position.set((r()-0.5)*rad*1.7,s*(0.2+r()*0.35)*(grey?0.4:1),(r()-0.5)*rad*1.1);
+    m.scale.set(1+r()*0.5,0.5+r()*0.15,1+r()*0.4);
+    m.rotation.y=r()*3.14;g2.add(m);
   }
-  var base=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.95,rad*0.95,10,10),flat);
+  /* bright cauliflower tops */
+  if(!grey){
+    var tops=3+Math.floor(r()*3);
+    for(var t=0;t<tops;t++){
+      var ts=rad*(0.16+r()*0.2);
+      var tm=new THREE.Mesh(new THREE.IcosahedronGeometry(ts,1),hi);
+      tm.position.set((r()-0.5)*rad*1.1,rad*(0.26+r()*0.3),(r()-0.5)*rad*0.7);
+      tm.scale.y=0.8+r()*0.3;tm.rotation.y=r()*3.14;g2.add(tm);
+    }
+  }
+  var base=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.95,rad*0.9,8,12),flat);
   base.position.y=-6;g2.add(base);
   return g2;
 }
@@ -490,14 +609,15 @@ function cloudShadow(x,z,rad,str){
   for(var i=0;i<30;i++){
     var str=0.7+r()*3.4,rad=380+r()*360;
     var x=r()*(COURSE+6000)-2000,z=(1500+r()*5200)*(i%2?1:-1);
-    var cl=cloudBlob(str,rad);cl.position.set(x,BASE+40+r()*160,z);scene.add(cl);
+    var cl=cloudBlob(str,rad,i+100);cl.position.set(x,BASE+30+r()*150,z);scene.add(cl);
     if(Math.abs(z)<3600)scene.add(cloudShadow(x,z,rad,str));
   }
 })();
 function buildWeatherMeshes(){
   while(wxGroup.children.length)wxGroup.remove(wxGroup.children[0]);
-  thermals.forEach(function(T){
-    var cl=cloudBlob(T.str,T.rad);cl.position.set(T.x,BASE+40,T.z);wxGroup.add(cl);
+  thermals.forEach(function(T,i){
+    /* base sits just above 1700 m: at BASE you scrape along right under the cloud */
+    var cl=cloudBlob(T.str,T.rad,i);cl.position.set(T.x,BASE+25,T.z);wxGroup.add(cl);
     var colMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,
       opacity:0.04+T.str*0.012,depthWrite:false,fog:true});
     var col=new THREE.Mesh(new THREE.CylinderGeometry(T.rad*0.45,T.rad*0.7,BASE,12,1,true),colMat);
@@ -506,52 +626,99 @@ function buildWeatherMeshes(){
   });
 }
 
-/* glider: low-poly white ship with orange tips */
+/* glider in the spirit of a Glasflügel Standard Libelle:
+   teardrop fuselage with a slim tail boom, low bubble canopy, tapered wings
+   with slight dihedral, conventional tail. Smooth-shaded fuselage, white gelcoat. */
 var glider=new THREE.Group();
 (function(){
-  var white=new THREE.MeshLambertMaterial({color:0xf4f8fb,flatShading:true});
+  var white=new THREE.MeshLambertMaterial({color:0xf6f9fc});
+  var whiteFlat=new THREE.MeshLambertMaterial({color:0xf6f9fc,flatShading:true});
   var orange=new THREE.MeshLambertMaterial({color:0xff7a1a,flatShading:true});
-  var canopy=new THREE.MeshLambertMaterial({color:0x7fb8e6,flatShading:true});
-  var fus=new THREE.Mesh(new THREE.CapsuleGeometry(2.2,24,4,8),white);
-  fus.rotation.z=Math.PI/2;glider.add(fus);
-  var nose=new THREE.Mesh(new THREE.ConeGeometry(2.2,6,8),white);
-  nose.rotation.z=-Math.PI/2;nose.position.x=16;glider.add(nose);
-  var cp=new THREE.Mesh(new THREE.SphereGeometry(2.1,10,8),canopy);
-  cp.scale.set(2.2,0.9,0.9);cp.position.set(6,1.6,0);glider.add(cp);
+  var canopy=new THREE.MeshLambertMaterial({color:0x3f6e99,emissive:0x16293c});
+  /* fuselage profile nose -> tail (x from +18 to -26), lathe around x */
+  var prof=[[18,0.01],[17.2,0.9],[15.5,1.7],[13,2.3],[10,2.6],[7,2.55],[4.5,2.3],
+            [2.5,1.8],[0.5,1.25],[-2,0.95],[-8,0.8],[-16,0.7],[-23,0.62],[-25.5,0.55],[-26,0.4]];
+  var pts=prof.map(function(p){return new THREE.Vector2(p[1],p[0])});
+  var fus=new THREE.Mesh(new THREE.LatheGeometry(pts,20),white);
+  fus.rotation.z=-Math.PI/2;                                   /* lathe axis y -> course axis x */
+  fus.scale.y=1.12;                                            /* slightly deeper than wide */
+  glider.add(fus);
+  /* low bubble canopy, flowing into the fuselage */
+  var cp=new THREE.Mesh(new THREE.SphereGeometry(2.0,14,10),canopy);
+  cp.scale.set(2.9,1.05,0.82);cp.position.set(9.5,1.7,0);glider.add(cp);
+  /* tapered wing: root chord 5, tip chord 1.9, half span 21, slight dihedral */
+  function wingShape(){
+    var s=new THREE.Shape();
+    s.moveTo(2.5,0);s.lineTo(1.6,21);s.lineTo(-0.3,21);s.lineTo(-2.5,0);s.closePath();
+    return s;
+  }
   function wing(side){
-    var w=new THREE.Mesh(new THREE.BoxGeometry(5.2,0.55,21),white);
-    w.position.set(3,1.2+0.9,side*10.5);w.rotation.x=side*-0.05;glider.add(w);
-    var tip=new THREE.Mesh(new THREE.BoxGeometry(5.2,0.6,2.6),orange);
-    tip.position.set(3,1.2+0.9+side*0,side*21.2);tip.rotation.x=side*-0.05;
-    tip.position.y=2.1+Math.abs(10.7)*0.05;glider.add(tip);
+    var g3=new THREE.ExtrudeGeometry(wingShape(),{depth:0.5,bevelEnabled:true,bevelThickness:0.14,bevelSize:0.3,bevelSegments:1});
+    g3.rotateX(side>0?-Math.PI/2:Math.PI/2);                   /* span along +-z, chord along x */
+    var w=new THREE.Mesh(g3,whiteFlat);
+    w.position.set(3.2,1.45,side*0.4);
+    w.rotation.x=side*-0.055;                                  /* dihedral */
+    glider.add(w);
+    var tip=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.5,1.6),orange);
+    tip.position.set(2.8,1.45+1.15,side*21.6);glider.add(tip);
   }
   wing(1);wing(-1);
-  var tail=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.45,9),white);
-  tail.position.set(-12.5,0.4,0);glider.add(tail);
-  var fin=new THREE.Mesh(new THREE.BoxGeometry(4.2,7.5,0.5),white);
-  fin.position.set(-12.8,4,0);glider.add(fin);
-  var finTip=new THREE.Mesh(new THREE.BoxGeometry(4.2,1.4,0.55),orange);
-  finTip.position.set(-12.8,7.6,0);glider.add(finTip);
-  glider.scale.setScalar(2.4);                                   /* readable at chase-cam distance */
+  /* conventional tail: tapered fin, stabilizer at its base */
+  var finS=new THREE.Shape();
+  finS.moveTo(-23,0);finS.lineTo(-24.6,6.2);finS.lineTo(-26.6,6.2);finS.lineTo(-26.6,0);finS.closePath();
+  var fin=new THREE.Mesh(new THREE.ExtrudeGeometry(finS,{depth:0.4,bevelEnabled:false}),whiteFlat);
+  fin.position.z=-0.2;glider.add(fin);
+  var finTip=new THREE.Mesh(new THREE.BoxGeometry(2.1,1.1,0.5),orange);
+  finTip.position.set(-25.6,6.0,0);glider.add(finTip);
+  function stab(side){
+    var g3=new THREE.ExtrudeGeometry((function(){var s=new THREE.Shape();
+      s.moveTo(1.5,0);s.lineTo(0.9,6.4);s.lineTo(-0.5,6.4);s.lineTo(-1.5,0);s.closePath();return s})(),
+      {depth:0.3,bevelEnabled:false});
+    g3.rotateX(side>0?-Math.PI/2:Math.PI/2);
+    var st=new THREE.Mesh(g3,whiteFlat);st.position.set(-24.4,1.1,side*0.3);glider.add(st);
+  }
+  stab(1);stab(-1);
+  /* registration stripe on the fin */
+  var reg=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.5,0.46),orange);
+  reg.position.set(-24.9,3.1,0);glider.add(reg);
+  glider.scale.setScalar(2.4);                                 /* readable at chase-cam distance */
 })();
 scene.add(glider);
 
-/* blob shadow on the ground */
-var shadow=new THREE.Mesh(new THREE.CircleGeometry(16,20),
-  new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false}));
-shadow.rotation.x=-Math.PI/2;scene.add(shadow);
+/* ground shadow: glider silhouette instead of a blob */
+var shadow=new THREE.Group();
+(function(){
+  var sm=shadow.userData.mat=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false});
+  function flat(w,d,x,z){var m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),sm);
+    m.rotation.x=-Math.PI/2;m.position.set(x,0,z);shadow.add(m)}
+  flat(44,4.2,-3,0);          /* fuselage */
+  flat(5,43,3.2,0);           /* wing */
+  flat(3,13,-24.4,0);         /* stabilizer */
+  shadow.scale.setScalar(2.4);
+})();
+scene.add(shadow);
 
-/* flight trail */
-var TRAILN=602;
+/* flight trail: a vertical ribbon so it reads as a thick line (WebGL ignores linewidth) */
+var TRAILN=602,TRAILW=1.5;
 var trailGeo=new THREE.BufferGeometry();
-trailGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(TRAILN*3),3));
-var trailLine=new THREE.Line(trailGeo,new THREE.LineBasicMaterial({color:0xff7a1a,transparent:true,opacity:0.75}));
+trailGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(TRAILN*2*3),3));
+(function(){
+  var idx=new Uint16Array((TRAILN-1)*6);
+  for(var i=0;i<TRAILN-1;i++){
+    var a=i*2,o=i*6;
+    idx[o]=a;idx[o+1]=a+1;idx[o+2]=a+2;idx[o+3]=a+1;idx[o+4]=a+3;idx[o+5]=a+2;
+  }
+  trailGeo.setIndex(new THREE.BufferAttribute(idx,1));
+})();
+var trailLine=new THREE.Mesh(trailGeo,new THREE.MeshBasicMaterial({color:0xff7a1a,transparent:true,
+  opacity:0.8,side:THREE.DoubleSide,depthWrite:false}));
 trailLine.frustumCulled=false;scene.add(trailLine);
 function updateTrail(){
   var p=trailGeo.attributes.position,n=0;
-  for(var i=0;i<trail.length&&n<TRAILN-1;i++,n++){p.setXYZ(n,trail[i].x,trail[i].h,0)}
-  p.setXYZ(n,S.x,S.h,0);n++;
-  trailGeo.setDrawRange(0,n);p.needsUpdate=true;
+  function put(x,h){p.setXYZ(n*2,x,h-TRAILW,0);p.setXYZ(n*2+1,x,h+TRAILW,0);n++}
+  for(var i=0;i<trail.length&&n<TRAILN-1;i++)put(trail[i].x,trail[i].h);
+  put(S.x,S.h);
+  trailGeo.setDrawRange(0,(n-1)*6);p.needsUpdate=true;
 }
 
 /* camera chase */
@@ -569,20 +736,18 @@ function updateCamera(rdt){
 function placeGlider(rdt){
   var bank=0,heading=0,px=S.x,pz=0;
   if(S.circ){
-    var R=42;
-    px=S.x+Math.sin(S.phase)*R;pz=Math.cos(S.phase)*R;
+    px=S.ccx+Math.sin(S.phase)*CIRCR;pz=Math.cos(S.phase)*CIRCR;
     heading=S.phase+Math.PI/2;bank=0.72;
-  }else{
-    bank=0;heading=0;
   }
   glider.position.set(px,S.h,pz);
   /* nose follows the actual glide path (vario vs. forward speed), exaggerated for readability */
-  var pitch=S.circ?0:Math.max(-0.42,Math.min(0.3,Math.atan2(S.vario,S.v/3.6)*3.2));
+  var pitch=S.circ?0:Math.max(-0.55,Math.min(0.35,Math.atan2(S.vario,S.v/3.6)*5));
   glider.rotation.set(0,-heading,0);
   glider.rotateZ(pitch);glider.rotateX(bank);
-  shadow.position.set(px,1.5,pz);
-  var sc=Math.max(0.35,1-S.h/2600);shadow.scale.setScalar(sc);
-  shadow.material.opacity=0.1+sc*0.16;
+  shadow.position.set(px,4,pz);
+  shadow.rotation.y=-heading;
+  var sc=Math.max(0.35,1-S.h/2600);shadow.scale.setScalar(2.4*sc);
+  shadow.userData.mat.opacity=0.1+sc*0.16;
 }
 function resize(){
   var r=stage.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
@@ -601,7 +766,7 @@ function hud(){
   var u=S.circ?'none':'';if(hudCache.vu!==u){hudCache.vu=u;document.getElementById('iV').lastChild.style.display=u}
   setTxt('iVario',(S.vario>=0?'+':'')+de(S.vario,1));
   setCls('varioBox','inst '+(S.vario>0.1?'up':S.vario<-1.5?'down':''));
-  setTxt('iX',de(Math.min(S.x,COURSE)/1000,1));
+  setTxt('iX',de(Math.max(0,COURSE-S.x)/1000,1));
   setTxt('iT',fmtT(S.t));
   var v=S.circ?110:S.v,need=(COURSE-S.x)/((v/3.6)/polar(v)),diff=S.h-need;
   setTxt('iF',(diff>=0?'+':'')+de(Math.round(diff/10)*10,0));
@@ -632,9 +797,7 @@ document.getElementById('wx').addEventListener('click',function(e){
   makeWeather();buildWeatherMeshes();reset();pendingScore=null;
   document.getElementById('iniForm').hidden=true;
   document.getElementById('ovTitle').textContent='Thermik-Sprint 50 km';
-  document.getElementById('ovText').textContent=WX[wx].name+': '+(wx===0?'wenige, schwache Bärte mit großen Lücken — Geduld und saubere Kreise.':
-    wx===1?'ein normaler Streckentag, nicht jeder Bart lohnt sich.':
-    'kräftige Bärte dicht an dicht — Vollgas, die Basis ist schnell wieder da.');
+  document.getElementById('ovText').textContent=WX[wx].info;
   document.getElementById('start').textContent='Losfliegen';
   renderBoard();showBest();fetchScores();
 });

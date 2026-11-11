@@ -1,8 +1,10 @@
 # Thermik-Sprint 3D
 
-Kleiner Streckenflug-Simulator für den Browser, jetzt in 3D (three.js). Fliege 50 km
-so schnell wie möglich: Kreise in Thermikbärten, gleite zwischen den Low-Poly-Wolken
-und komm mit Endanflughöhe ins Ziel.
+Kleiner Streckenflug-Simulator für den Browser, in 3D (three.js). Fliege 50 km über
+das Münsterland nach **EDXE Rheine-Eschendorf**, Anflug über **EDWN Nordhorn-Lingen**
+(bei km 29 vor dem Ziel). Die Landschaft — Wälder, Flüsse (Ems!), Ortschaften —
+stammt aus OpenStreetMap (`map-data.js`, einmalig per Overpass gebaut). Das
+Segelflugzeug ist einer Glasflügel Standard Libelle nachempfunden.
 
 Eine einzige Datei, kein Build. three.js wird als ES-Modul vom CDN geladen —
 `index.html` braucht also einmalig eine Internetverbindung.
@@ -14,28 +16,36 @@ Eine einzige Datei, kein Build. three.js wird als ES-Modul vom CDN geladen —
 
 ## Spielprinzip
 
-- Start auf 1200 m, Wolkenbasis bei 1700 m, Ziel nach 50 km.
+- Start auf 1200 m, bei 1700 m kratzt man knapp unter den Wolken, Ziel nach 50 km.
+- Die Restanzeige und die Schilder zählen rückwärts bis EDXE.
+- Beim Loslassen der Kreisen-Taste wird die Kurve zu Ende geflogen, bis die Nase
+  wieder auf Kurs zeigt.
 - Schneller fliegen kostet Höhe (Polare grob eines Doppelsitzers, Gleitzahl ca. 43).
 - Um jeden Bart liegt ein Ring aus Sinken. Nicht jeder Bart lohnt sich.
 - Der Endanflugrechner zeigt, ob die Höhe bis ins Ziel reicht.
 - Die Zeit läuft 20-fach beschleunigt.
 
-## Wetter
+## Level
 
-Drei feste Wettermodelle, jeweils mit identischen Bärten bei jedem Start:
+Fünf feste Level. Innerhalb eines Levels hat **jeder Bart dieselbe Stärke**, und die
+Bärte stehen bei jedem Start an denselben Stellen:
 
-- **Wenig Thermik** — wenige, schwache Bärte mit großen Lücken. Geduldsspiel.
-- **Mittlere Thermik** — ein normaler Streckentag.
-- **Starke Thermik** — kräftige Bärte dicht an dicht. Vollgas.
+| Level | Steigen | Charakter |
+|---|---|---|
+| L1 Hammertag | 4,0 m/s | Bärte dicht an dicht, Vollgas |
+| L2 Guter Tag | 3,2 m/s | ordentliche Abstände |
+| L3 Streckentag | 2,5 m/s | größere Lücken, Höhe einteilen |
+| L4 Zäher Tag | 1,8 m/s | weite Lücken, jeder Bart muss sitzen |
+| L5 ULTRA | 1,35 m/s | riesige Lücken — schaffbar, gerade so |
 
 ## Highscores
 
-Arcade-Bestenliste wie in den 80ern: drei Initialen, Top 10, pro Wettermodell eine
+Arcade-Bestenliste wie in den 80ern: drei Initialen, Top 10, pro Level eine
 eigene Liste. Punkte = Schnittgeschwindigkeit × 1000 + Resthöhe im Ziel; eine
 Außenlandung bringt 250 Punkte pro geflogenem Kilometer.
 
 Liegt `scores.php` mit auf einem PHP-fähigen Server, ist die Liste **gemeinsam für
-alle Spieler** (Ablage in `scores.json` neben dem Skript, mit Plausibilitätsprüfung
-der gemeldeten Punkte). Ohne PHP-Backend fällt das Spiel automatisch auf eine lokale
+alle Spieler** (Ablage in `scores.json` neben dem Skript, mit Plausibilitätsprüfung der gemeldeten
+Punkte gegen die Polare, Außenlandungen gegen die Maximaldistanz). Ohne PHP-Backend fällt das Spiel automatisch auf eine lokale
 Liste im `localStorage` zurück. Die Punkte werden im Browser gemessen und sind nicht
 manipulationssicher.
