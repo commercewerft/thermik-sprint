@@ -148,16 +148,17 @@ button.held{background:#2a4660;border-color:var(--ink)}
         <h2 id="ovTitle">Thermik-Sprint 50&nbsp;km</h2>
         <p id="ovText">50 km über das Münsterland nach Rheine-Eschendorf, Anflug über Nordhorn-Lingen. Unter jeder Wolke steht ein Bart.</p>
         <div class="wx" id="wx" role="group" aria-label="Level wählen">
-          <button data-wx="0" aria-pressed="false"><em>L1</em>Hammer<br>4,0 m/s</button>
-          <button data-wx="1" aria-pressed="true"><em>L2</em>Gut<br>3,2 m/s</button>
+          <button data-wx="0" aria-pressed="false"><em>L1</em>Hammer<br>4,5 m/s</button>
+          <button data-wx="1" aria-pressed="true"><em>L2</em>Gut<br>3,3 m/s</button>
           <button data-wx="2" aria-pressed="false"><em>L3</em>Normal<br>2,5 m/s</button>
           <button data-wx="3" aria-pressed="false"><em>L4</em>Zäh<br>1,8 m/s</button>
-          <button data-wx="4" aria-pressed="false"><em>L5</em>ULTRA<br>1,35 m/s</button>
+          <button data-wx="4" aria-pressed="false"><em>L5</em>ULTRA<br>1,15 m/s</button>
         </div>
         <ul id="ovHelp">
           <li>Himmel gedrückt halten: kreisen und steigen</li>
           <li>Langsamer / Schneller halten: schneller kostet Höhe</li>
-          <li>Basis bei 1700 m, darüber geht nichts</li>
+          <li>Die Wolkenbasis deckelt das Steigen — je zäher der Tag, desto niedriger hängt sie</li>
+          <li>Hinter Nordhorn-Lingen ist der Himmel blau: 29 km Endanflug ins Ziel</li>
           <li id="kbHint" hidden>Tastatur: <kbd>↑</kbd> <kbd>↓</kbd> Fahrt, <kbd>Leertaste</kbd> kreisen</li>
         </ul>
         <form id="iniForm" hidden>
@@ -203,7 +204,7 @@ var MAP=window.MAPDATA||{forest:[],urban:[],water:[],rivers:[],edwnX:20800};
 var DEBUGCAM=/[?&]cam=near/.test(location.search);
 
 var stage=document.getElementById('stage'),cv=document.getElementById('c');
-var COURSE=50000,BASE=1700,TIMEX=20;
+var COURSE=50000,TIMEX=20;
 var touch=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches;
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function hash(i){var r=rng(i*7919+13);return r()}
@@ -213,28 +214,31 @@ function buzz(p){try{if(navigator.vibrate)navigator.vibrate(p)}catch(e){}}
 
 /* ---------- the five levels: within a level every thermal has the SAME strength ---------- */
 var WX=[
-  {name:'L1 · Hammertag',  seed:111, str:4.0,  rad:600, gapMin:2100, gapVar:1200,
-   info:'Hammertag: 4,0 m/s unter jeder Wolke, die Bärte stehen dicht. Vollgas.'},
-  {name:'L2 · Guter Tag',  seed:222, str:3.2,  rad:520, gapMin:2600, gapVar:1600,
-   info:'Guter Tag: 3,2 m/s, ordentliche Abstände. Zügig fliegen lohnt sich.'},
-  {name:'L3 · Streckentag',seed:333, str:2.5,  rad:460, gapMin:3200, gapVar:2200,
-   info:'Streckentag: 2,5 m/s, die Lücken werden größer. Höhe einteilen.'},
-  {name:'L4 · Zäher Tag',  seed:444, str:1.8,  rad:430, gapMin:4200, gapVar:2600,
-   info:'Zäher Tag: 1,8 m/s und weite Lücken. Jeder Bart muss sitzen.'},
-  {name:'L5 · ULTRA',      seed:555, str:1.35, rad:400, gapMin:5200, gapVar:2600,
-   info:'ULTRA: 1,35 m/s, riesige Lücken, kleine Bärte. Schaffbar — gerade so.'}
+  {name:'L1 · Hammertag',  seed:111, str:4.5,  rad:700, gapMin:1900, gapVar:700,  h0:1200, base:1700,
+   info:'Hammertag: 4,5 m/s, Start auf 1200 m, Basis 1700 m. Die Bärte tragen dich im Geradeausflug durch — einfach gleiten lassen.'},
+  {name:'L2 · Guter Tag',  seed:222, str:3.3,  rad:560, gapMin:2500, gapVar:1000, h0:1000, base:1700,
+   info:'Guter Tag: 3,3 m/s, Start auf 1000 m, Basis 1700 m. Fast durchgleitbar, ein bis zwei Bärte brauchst du.'},
+  {name:'L3 · Streckentag',seed:333, str:2.5,  rad:470, gapMin:3300, gapVar:1800, h0:850,  base:1600,
+   info:'Streckentag: 2,5 m/s, Start auf 850 m, Basis 1600 m. Höhe einteilen, nicht jeder Bart lohnt sich.'},
+  {name:'L4 · Zäher Tag',  seed:444, str:1.8,  rad:430, gapMin:4300, gapVar:2200, h0:650,  base:1450,
+   info:'Zäher Tag: 1,8 m/s, Start auf 650 m, Basis nur 1450 m. Weite Lücken — jeder Bart muss sitzen.'},
+  {name:'L5 · ULTRA',      seed:555, str:1.15, rad:390, gapMin:4300, gapVar:1500, h0:420,  base:1150,
+   info:'ULTRA: 1,15 m/s, Start auf 420 m, Basis 1150 m. Nimm fast jeden Bart mit und kurble ihn aus — sonst liegst du im Acker.'}
 ];
+var BASE=WX[1].base;
 var wx=1,thermals=[],S,keys={},holdCircle=false,holdStage=false,holdSlow=false,holdFast=false,trail=[];
 function makeWeather(){
   var P=WX[wx],r=rng(P.seed*1000+1);thermals=[];var x=1800+r()*1500;
-  while(x<COURSE-1500){
+  BASE=P.base;
+  var lastX=(MAP.edwnX||20800)-600;      /* no lift beyond EDWN: ~29 km final glide, ~1000 m needed */
+  while(x<lastX){
     thermals.push({x:x,z:(r()-0.5)*600,str:P.str,rad:P.rad,ph:r()*6});
     x+=P.gapMin+r()*P.gapVar;
   }
 }
-function reset(){S={x:0,h:1200,v:110,t:0,vario:-0.7,circ:false,phase:0,ccx:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
+function reset(){S={x:0,h:WX[wx].h0,v:110,t:0,vario:-0.7,circ:false,phase:0,ccx:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
 var CIRCR=42;
-function polar(v){var d=v-85;return 0.6+0.0001815*d*d}
+function polar(v){var d=v-90;return 0.72+0.0002*d*d}   /* best glide ~1:38 near 112 km/h */
 function air(x){
   var a=0;
   for(var i=0;i<thermals.length;i++){var T=thermals[i],dx=Math.abs(x-T.x);if(dx>T.rad*4)continue;
@@ -426,6 +430,13 @@ function buildTerrain(){
   g2.globalAlpha=1;
   MAP.urban.forEach(function(p){g2.fillStyle='#b7ab97';paintPoly(g2,p)});
   MAP.forest.forEach(function(p,i){g2.fillStyle=i%2?'#3a6a3c':'#346237';paintPoly(g2,p)});
+  var roadCols=['#8d8a84','#9a958c','#a6a198'],roadW=[3,2.2,1.5];
+  g2.lineJoin='round';g2.lineCap='round';
+  (MAP.roads||[]).forEach(function(rd){
+    g2.strokeStyle=roadCols[rd[0]];g2.lineWidth=roadW[rd[0]];g2.beginPath();
+    for(var i=1;i<rd.length;i++){var p=rd[i];if(i>1)g2.lineTo(texU(p[0]),texV(p[1]));else g2.moveTo(texU(p[0]),texV(p[1]))}
+    g2.stroke();
+  });
   g2.strokeStyle='#4b8dc0';g2.lineJoin='round';g2.lineCap='round';
   MAP.rivers.forEach(function(line){
     g2.lineWidth=2.4;g2.beginPath();
@@ -471,7 +482,7 @@ function scatterIn(polys,n,r,cb){
     var x=b[0]+r()*(b[1]-b[0]),z=b[2]+r()*(b[3]-b[2]);
     if(z<TZ0+150||z>TZ1-150||x<TX0||x>TX1)continue;
     if(x>COURSE-900&&x<COURSE+1400&&Math.abs(z)<420)continue;          /* EDXE clear */
-    if(Math.abs(x-(MAP.edwnX||20800))<650&&Math.abs(z-80)<380)continue; /* EDWN clear */
+    if(Math.abs(x-(MAP.edwnX||20800))<450&&Math.abs(z-80)<520)continue; /* EDWN clear (runway 05/23 runs crosswise) */
     if(!inPoly(x,z,polys[i]))continue;
     cb(x,z);placed++;
   }
@@ -499,7 +510,7 @@ function scatterIn(polys,n,r,cb){
   trunk.instanceMatrix.needsUpdate=true;crown.instanceMatrix.needsUpdate=true;
   scene.add(trunk);scene.add(crown);
   /* houses inside real settlements */
-  var NH=420,j=0;
+  var NH=240,j=0;
   var walls=new THREE.InstancedMesh(new THREE.BoxGeometry(14,7,10),
     new THREE.MeshLambertMaterial({color:0xd8cfbe,flatShading:true}),NH);
   var roofs=new THREE.InstancedMesh(new THREE.ConeGeometry(9.4,6,4),
@@ -516,6 +527,42 @@ function scatterIn(polys,n,r,cb){
   walls.count=roofs.count=j;
   walls.instanceMatrix.needsUpdate=true;roofs.instanceMatrix.needsUpdate=true;
   scene.add(walls);scene.add(roofs);
+})();
+
+/* real OSM building footprints as oriented boxes (the 4500 largest in the corridor) */
+(function(){
+  var B=MAP.bldg||[];if(!B.length)return;
+  var geo=new THREE.BoxGeometry(1,1,1);geo.translate(0,0.5,0);
+  var mesh=new THREE.InstancedMesh(geo,new THREE.MeshLambertMaterial({flatShading:true}),B.length);
+  var m=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),col=new THREE.Color();
+  var cols=[0xc9b9a2,0xb8a68e,0xa5523a,0x9b8f80,0xb06950,0xcfc4b0];
+  for(var i=0;i<B.length;i++){
+    var b=B[i],w=b[2],d=b[3],h=5+Math.min(16,Math.sqrt(w*d)/5);
+    q.setFromAxisAngle(up,-b[4]*Math.PI/180);
+    m.compose(new THREE.Vector3(b[0],0,b[1]),q,new THREE.Vector3(w,h,d));
+    mesh.setMatrixAt(i,m);
+    col.setHex(cols[Math.floor(hash(i*13+7)*cols.length)]);mesh.setColorAt(i,col);
+  }
+  mesh.instanceMatrix.needsUpdate=true;scene.add(mesh);
+})();
+
+/* wind turbines at their real OSM positions */
+(function(){
+  var Wd=MAP.wind||[];if(!Wd.length)return;
+  var m=new THREE.Matrix4();
+  var mastG=new THREE.CylinderGeometry(1.6,2.8,88,6);mastG.translate(0,44,0);
+  var mast=new THREE.InstancedMesh(mastG,new THREE.MeshLambertMaterial({color:0xe8ecef}),Wd.length);
+  var parts=[mast];
+  for(var j=0;j<3;j++){
+    var bg=new THREE.BoxGeometry(1.1,34,2.6);bg.translate(0,17,0);
+    bg.rotateX(j*Math.PI*2/3);bg.translate(0,88,0);
+    parts.push(new THREE.InstancedMesh(bg,new THREE.MeshLambertMaterial({color:0xf2f5f7}),Wd.length));
+  }
+  for(var i=0;i<Wd.length;i++){
+    m.makeTranslation(Wd[i][0],0,Wd[i][1]);
+    parts.forEach(function(p){p.setMatrixAt(i,m)});
+  }
+  parts.forEach(function(p){p.instanceMatrix.needsUpdate=true;scene.add(p)});
 })();
 
 /* finish airfield: runway + banner */
@@ -550,17 +597,18 @@ for(var k=1;k*5000<COURSE;k++){
 }
 var edxeLabel=kmSprite('ZIEL EDXE','rgba(255,122,26,.95)');
 edxeLabel.scale.set(620,310,1);edxeLabel.position.set(COURSE,560,0);scene.add(edxeLabel);
-/* EDWN Nordhorn-Lingen: the course runs right across the field */
+/* EDWN Nordhorn-Lingen: the course runs right across the field.
+   Runway 05/23 (heading ~050 deg) lies almost perpendicular to the course axis (~134 deg). */
 (function(){
-  var X=MAP.edwnX||20800;
+  var X=MAP.edwnX||20800,RWY=-1.463;
   var strip=new THREE.Mesh(new THREE.BoxGeometry(700,3,46),new THREE.MeshLambertMaterial({color:0x4a7a3a}));
-  strip.position.set(X,3,80);scene.add(strip);
+  strip.position.set(X,3,80);strip.rotation.y=RWY;scene.add(strip);
   var rw=new THREE.Mesh(new THREE.BoxGeometry(640,2,18),new THREE.MeshLambertMaterial({color:0x8e9196}));
-  rw.position.set(X,6.2,80);scene.add(rw);
+  rw.position.set(X,6.2,80);rw.rotation.y=RWY;scene.add(rw);
   var mast=new THREE.Mesh(new THREE.CylinderGeometry(2,2,60,6),new THREE.MeshLambertMaterial({color:0xe9f0f5}));
-  mast.position.set(X-360,30,80);scene.add(mast);
+  mast.position.set(X-120,30,80);scene.add(mast);
   var sock=new THREE.Mesh(new THREE.ConeGeometry(9,30,6),new THREE.MeshLambertMaterial({color:0xff7a1a}));
-  sock.rotation.z=Math.PI/2;sock.position.set(X-375,56,80);scene.add(sock);
+  sock.rotation.z=Math.PI/2;sock.position.set(X-135,56,80);scene.add(sock);
   var lbl=kmSprite('EDWN','rgba(18,32,46,.9)');lbl.position.set(X,320,80);scene.add(lbl);
 })();
 
@@ -609,16 +657,7 @@ function cloudShadow(x,z,rad,str){
   m.rotation.x=-Math.PI/2;m.position.set(x,2.5,z);m.scale.setScalar(rad*1.05);
   return m;
 }
-/* decorative clouds left and right of the course: scenery only, no lift */
-(function(){
-  var r=rng(9090);
-  for(var i=0;i<30;i++){
-    var str=0.7+r()*3.4,rad=380+r()*360;
-    var x=r()*(COURSE+6000)-2000,z=(1500+r()*5200)*(i%2?1:-1);
-    var cl=cloudBlob(str,rad,i+100);cl.position.set(x,BASE+30+r()*150,z);scene.add(cl);
-    if(Math.abs(z)<3600)scene.add(cloudShadow(x,z,rad,str));
-  }
-})();
+
 function buildWeatherMeshes(){
   while(wxGroup.children.length)wxGroup.remove(wxGroup.children[0]);
   thermals.forEach(function(T,i){
@@ -630,6 +669,14 @@ function buildWeatherMeshes(){
     col.position.set(T.x,BASE/2,T.z);wxGroup.add(col);
     wxGroup.add(cloudShadow(T.x,T.z,T.rad,T.str));
   });
+  /* decorative clouds left and right of the course: scenery only, no lift */
+  var r=rng(9090);
+  for(var i=0;i<30;i++){
+    var str=0.7+r()*3.4,rad=380+r()*360;
+    var x=r()*(COURSE+6000)-2000,z=(1500+r()*5200)*(i%2?1:-1);
+    var cl=cloudBlob(str,rad,i+100);cl.position.set(x,BASE+30+r()*150,z);wxGroup.add(cl);
+    if(Math.abs(z)<3600)wxGroup.add(cloudShadow(x,z,rad,str));
+  }
 }
 
 /* glider in the spirit of a Glasflügel Standard Libelle:
