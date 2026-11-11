@@ -53,12 +53,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_int($t) || $t < 0 || $t > 86400) fail(400, 'bad time');
     /* ein Zielflug (t > 0) kann physikalisch nicht schneller sein, als die Polare hergibt */
     /* Punkte = Schnitt(km/h)*1000 + Resthöhe; Schnitt = 50 km / (t/3600 h) => max. 180000000/t + 1700.
+       Schnellste denkbare Zeit: 50 km mit Vmax 250 km/h durchgehend = 720 s.
        Außenlandung (t = 0) bringt höchstens 50 km * 250 Punkte. */
     if ($wx === 5) {
         /* Endless: reine Distanzwertung, 250 Punkte/km, t immer 0 */
         if ($t !== 0 || $sc > 500000) fail(400, 'implausible');
     } else {
-        if ($t > 0 && ($t < 800 || $sc > intdiv(180000000, $t) + 1700)) fail(400, 'implausible');
+        if ($t > 0 && ($t < 700 || $sc > intdiv(180000000, $t) + 1700)) fail(400, 'implausible');
         if ($t === 0 && $sc > 12500) fail(400, 'implausible');
     }
 

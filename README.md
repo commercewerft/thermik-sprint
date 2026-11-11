@@ -21,7 +21,8 @@ Eine einzige Datei, kein Build. three.js wird als ES-Modul vom CDN geladen —
 - Die Restanzeige und die Schilder zählen rückwärts bis EDXE.
 - Beim Loslassen der Kreisen-Taste wird die Kurve zu Ende geflogen, bis die Nase
   wieder auf Kurs zeigt.
-- Schneller fliegen kostet Höhe (Gleitzahl 1:38 bei ~110 km/h, bei 160 nur noch 1:26).
+- Schneller fliegen kostet Höhe (Gleitzahl 1:38 bei ~110 km/h, bei 160 nur noch 1:26,
+  bei Vmax 250 etwa 1:12).
 - Um jeden Bart liegt ein Ring aus Sinken. Nicht jeder Bart lohnt sich.
 - Die Bärte stehen über die ganze Strecke bis kurz vor EDXE verteilt.
   Der Endanflugrechner zeigt, ob die Höhe bis ins Ziel reicht.

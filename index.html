@@ -41,6 +41,7 @@ h1 span{color:var(--signal)}
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 canvas{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none}
 .tools{position:absolute;top:8px;right:8px;display:flex;gap:8px;z-index:3}
+.credit{position:absolute;right:10px;bottom:6px;z-index:1;font-size:12px;color:rgba(10,30,50,.55);pointer-events:none}
 .tools button{font-size:14px;padding:0 12px;min-height:40px;background:rgba(18,32,46,.72);border-color:rgba(255,255,255,.25)}
 .overlay{position:absolute;inset:0;z-index:2;display:flex;padding:12px;background:rgba(6,10,20,.6);overflow:auto;touch-action:pan-y}
 .overlay[hidden]{display:none}
@@ -144,6 +145,7 @@ button.held{background:#2a4660;border-color:var(--ink)}
 
   <div class="stage" id="stage">
     <canvas id="c" aria-label="3D-Ansicht des Flugs"></canvas>
+    <div class="credit">Idee: peter@edxe</div>
     <div class="tools">
       <button id="sound" aria-pressed="false">Ton aus</button>
       <button id="full" hidden>Vollbild</button>
@@ -319,6 +321,7 @@ var JGL_WIN=[[523,0.12],[659,0.12],[784,0.12],[1047,0.38]];        /* C-E-G-C fa
 var JGL_OUT=[[440,0.22],[415,0.22],[392,0.22],[370,0.55]];         /* sad descending */
 var JGL_LAP=[[784,0.09],[1047,0.2]];                               /* endless gate ding */
 var JGL_START=[[392,0.1],[523,0.1],[659,0.28]];                    /* take-off: G-C-E rising */
+var JGL_BASE=[[1047,0.08],[1319,0.16]];                            /* cloud base reached */
 function audioTick(dt){
   if(!AC)return;var target=0,f=400;
   if(soundOn&&S.mode==='fly'&&!document.hidden){
@@ -329,7 +332,7 @@ function audioTick(dt){
   if(noiseGain){
     var nv=0,nf=420;
     if(soundOn&&S.mode==='fly'&&!document.hidden){
-      var vv=S.circ?95:S.v,k=(vv-80)/140;            /* 0 at 80 km/h, 1 at 220 */
+      var vv=S.circ?95:S.v,k=(vv-80)/170;            /* 0 at 80 km/h, 1 at 250 */
       nv=0.015+k*k*0.14;
       nf=380+k*1500;
     }
@@ -343,7 +346,7 @@ var trailDirty=false;
 function step(rdt){
   if(S.mode!=='fly')return;
   var dv=0;if(keys.ArrowUp||keys.ArrowRight||holdFast)dv+=1;if(keys.ArrowDown||keys.ArrowLeft||holdSlow)dv-=1;
-  S.v=Math.max(80,Math.min(220,S.v+dv*70*rdt));
+  S.v=Math.max(80,Math.min(250,S.v+dv*70*rdt));
   var want=!!(keys[' ']||holdCircle||holdStage);
   if(want&&!S.circ){S.circ=true;S.phase=-Math.PI/2;S.ccx=S.x+CIRCR}
   if(S.circ&&!want){
@@ -355,6 +358,9 @@ function step(rdt){
   var vz=a-sink; if(S.h>=BASE&&vz>0)vz=0;
   S.vario+=(vz-S.vario)*Math.min(1,rdt*6);
   S.h+=vz*dt;if(vz>0&&S.h>BASE)S.h=BASE;S.x+=vxm*dt;S.t+=dt;
+  var atB=S.h>=BASE-1;
+  if(atB&&!S.atBase)jingle(JGL_BASE);   /* chime once each time the cloud base is reached */
+  S.atBase=atB;
   if(S.circ)S.phase+=rdt*5;
   var lift=a>1.0; if(lift&&!S.inLift)buzz(18); S.inLift=lift;
   var gx=S.circ?S.ccx+Math.sin(S.phase)*CIRCR:S.x,
