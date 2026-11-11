@@ -12,7 +12,7 @@ Eine einzige Datei, kein Build. three.js wird als ES-Modul vom CDN geladen —
 
 ## Bedienung
 
-- **Touch:** Himmel gedrückt halten zum Kreisen, mit „Langsamer" und „Schneller" die Fahrt ändern.
+- **Touch:** „Kreisen" (oder den Himmel) gedrückt halten zum Kreisen, mit „Langsamer" und „Schneller" die Fahrt ändern.
 - **Tastatur:** `↑` / `↓` für die Fahrt, Leertaste halten zum Kreisen, Enter für einen neuen Flug.
 
 ## Spielprinzip
@@ -44,6 +44,12 @@ und Wolkenbasis — ein zäher Tag hängt tiefer:
 
 Die Balance ist gegen eine Nachbildung der Flugphysik simuliert: L1 erreicht das
 Ziel ohne jede Eingabe, L5 kommt mit allen Bärten mit ~240 m Resthöhe an.
+
+Dazu **ENDLESS**: Runde um Runde über dieselbe Strecke, durchs EDXE-Tor geht es
+in die nächste Runde — und mit jedem geflogenen Kilometer wird die Thermik
+schwächer, enger und lückenhafter (von 4,2 m/s abwärts bis 0,95), bis die
+Außenlandung unvermeidlich ist. Punkte = 250 × Gesamtkilometer, eigene
+Highscore-Liste.
 
 ## Highscores
 

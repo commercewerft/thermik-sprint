@@ -31,7 +31,7 @@ flock($fh, LOCK_EX);
 $raw = stream_get_contents($fh);
 $data = json_decode($raw ?: '{}', true);
 if (!is_array($data)) $data = [];
-for ($i = 0; $i <= 4; $i++) {
+for ($i = 0; $i <= 5; $i++) {
     if (!isset($data[$i]) || !is_array($data[$i])) $data[$i] = [];
 }
 
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_array($body)) fail(400, 'bad json');
 
     $wx = $body['wx'] ?? null;
-    if (!is_int($wx) || $wx < 0 || $wx > 4) fail(400, 'bad wx');
+    if (!is_int($wx) || $wx < 0 || $wx > 5) fail(400, 'bad wx');
 
     $ini = mb_strtoupper(trim((string)($body['ini'] ?? '')));
     $ini = preg_replace('/[^A-Z0-9ÄÖÜ]/u', '', $ini);
@@ -54,8 +54,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     /* ein Zielflug (t > 0) kann physikalisch nicht schneller sein, als die Polare hergibt */
     /* Punkte = Schnitt(km/h)*1000 + Resthöhe; Schnitt = 50 km / (t/3600 h) => max. 180000000/t + 1700.
        Außenlandung (t = 0) bringt höchstens 50 km * 250 Punkte. */
-    if ($t > 0 && ($t < 800 || $sc > intdiv(180000000, $t) + 1700)) fail(400, 'implausible');
-    if ($t === 0 && $sc > 12500) fail(400, 'implausible');
+    if ($wx === 5) {
+        /* Endless: reine Distanzwertung, 250 Punkte/km, t immer 0 */
+        if ($t !== 0 || $sc > 500000) fail(400, 'implausible');
+    } else {
+        if ($t > 0 && ($t < 800 || $sc > intdiv(180000000, $t) + 1700)) fail(400, 'implausible');
+        if ($t === 0 && $sc > 12500) fail(400, 'implausible');
+    }
 
     $list = $data[$wx];
     $list[] = ['ini' => $ini, 'sc' => $sc, 't' => $t, 'ts' => time()];
@@ -81,5 +86,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $wx = isset($_GET['wx']) ? (int)$_GET['wx'] : -1;
 flock($fh, LOCK_UN);
 fclose($fh);
-if ($wx < 0 || $wx > 4) fail(400, 'bad wx');
+if ($wx < 0 || $wx > 5) fail(400, 'bad wx');
 echo json_encode(['scores' => top($data[$wx])], JSON_UNESCAPED_UNICODE);

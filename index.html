@@ -153,9 +153,10 @@ button.held{background:#2a4660;border-color:var(--ink)}
           <button data-wx="2" aria-pressed="false"><em>L3</em>Normal<br>2,5 m/s</button>
           <button data-wx="3" aria-pressed="false"><em>L4</em>Zäh<br>1,8 m/s</button>
           <button data-wx="4" aria-pressed="false"><em>L5</em>ULTRA<br>1,15 m/s</button>
+          <button data-wx="5" aria-pressed="false" style="grid-column:1/-1"><em>∞ ENDLESS</em>So weit wie möglich — die Thermik wird immer zäher</button>
         </div>
         <ul id="ovHelp">
-          <li>Himmel gedrückt halten: kreisen und steigen</li>
+          <li>„Kreisen&ldquo; (oder den Himmel) gedrückt halten: kreisen und steigen</li>
           <li>Langsamer / Schneller halten: schneller kostet Höhe</li>
           <li>Die Wolkenbasis deckelt das Steigen — je zäher der Tag, desto niedriger hängt sie</li>
           <li>Hinter Nordhorn-Lingen ist der Himmel blau: 29 km Endanflug ins Ziel</li>
@@ -202,6 +203,7 @@ button.held{background:#2a4660;border-color:var(--ink)}
 import * as THREE from 'three';
 var MAP=window.MAPDATA||{forest:[],urban:[],water:[],rivers:[],edwnX:20800};
 var DEBUGCAM=/[?&]cam=near/.test(location.search);
+var DEBUGX=(function(){var m=location.search.match(/[?&]x=(\d+)/);return m?parseInt(m[1],10):0})();
 
 var stage=document.getElementById('stage'),cv=document.getElementById('c');
 var COURSE=50000,TIMEX=20;
@@ -223,20 +225,33 @@ var WX=[
   {name:'L4 · Zäher Tag',  seed:444, str:1.8,  rad:430, gapMin:4300, gapVar:2200, h0:650,  base:1450,
    info:'Zäher Tag: 1,8 m/s, Start auf 650 m, Basis nur 1450 m. Weite Lücken — jeder Bart muss sitzen.'},
   {name:'L5 · ULTRA',      seed:555, str:1.15, rad:390, gapMin:4300, gapVar:1500, h0:420,  base:1150,
-   info:'ULTRA: 1,15 m/s, Start auf 420 m, Basis 1150 m. Nimm fast jeden Bart mit und kurble ihn aus — sonst liegst du im Acker.'}
+   info:'ULTRA: 1,15 m/s, Start auf 420 m, Basis 1150 m. Nimm fast jeden Bart mit und kurble ihn aus — sonst liegst du im Acker.'},
+  {name:'ENDLESS',         seed:777, endless:true, h0:1200, base:1700,
+   info:'ENDLESS: Runde um Runde über dieselbe Strecke, und mit jedem Kilometer wird die Thermik schwächer und lückenhafter. Wie weit kommst du?'}
 ];
 var BASE=WX[1].base;
 var wx=1,thermals=[],S,keys={},holdCircle=false,holdStage=false,holdSlow=false,holdFast=false,trail=[];
-function makeWeather(){
-  var P=WX[wx],r=rng(P.seed*1000+1);thermals=[];var x=1800+r()*1500;
+function makeWeather(lap){
+  var P=WX[wx],r=rng(P.seed*1000+1+(lap||0)*97);thermals=[];var x=1800+r()*1500;
   BASE=P.base;
+  if(P.endless){
+    /* thermals over the whole lap; strength fades and gaps widen with TOTAL km flown */
+    while(x<COURSE-1500){
+      var tot=((lap||0)*COURSE+x)/1000;                      /* km since takeoff */
+      var str=Math.max(0.95,4.2-tot*0.03);
+      var rad=Math.max(380,680-tot*2.4);
+      thermals.push({x:x,z:(r()-0.5)*600,str:str,rad:rad,ph:r()*6});
+      x+=1900+tot*28+r()*(700+tot*14);
+    }
+    return;
+  }
   var lastX=(MAP.edwnX||20800)-600;      /* no lift beyond EDWN: ~29 km final glide, ~1000 m needed */
   while(x<lastX){
     thermals.push({x:x,z:(r()-0.5)*600,str:P.str,rad:P.rad,ph:r()*6});
     x+=P.gapMin+r()*P.gapVar;
   }
 }
-function reset(){S={x:0,h:WX[wx].h0,v:110,t:0,vario:-0.7,circ:false,phase:0,ccx:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
+function reset(){S={x:0,lap:0,h:WX[wx].h0,v:110,t:0,vario:-0.7,circ:false,phase:0,ccx:0,mode:'ready',inLift:false};trail=[];trailDirty=true}
 var CIRCR=42;
 function polar(v){var d=v-90;return 0.72+0.0002*d*d}   /* best glide ~1:38 near 112 km/h */
 function air(x){
@@ -289,7 +304,16 @@ function step(rdt){
   if(!last||Math.hypot(gx-last.x,gz-last.z)>(S.circ?13:120)||Math.abs(S.h-last.h)>12){
     trail.push({x:gx,h:S.h,z:gz});trailDirty=true;
     if(trail.length>TRAILN-2)trail.shift();}
-  if(S.x>=COURSE){S.mode='done';finish(true)}
+  if(S.x>=COURSE){
+    if(WX[wx].endless){
+      /* through the EDXE gate: next lap, same strip, tougher sky */
+      S.x-=COURSE;S.lap++;if(S.circ)S.ccx-=COURSE;
+      trail.forEach(function(p){p.x-=COURSE});trailDirty=true;
+      camPos.x-=COURSE;camAim.x-=COURSE;
+      makeWeather(S.lap);buildWeatherMeshes();
+      buzz(40);
+    }else{S.mode='done';finish(true)}
+  }
   else if(S.h<=0){S.h=0;S.mode='out';finish(false)}
 }
 
@@ -310,6 +334,7 @@ function fetchScores(){
   }).catch(function(){});
 }
 function calcScore(ok){
+  if(WX[wx].endless)return Math.round((S.lap*COURSE+S.x)/1000*250);
   if(ok){var avg=COURSE/S.t*3.6;return Math.round(avg*1000)+Math.round(S.h)}
   return Math.round(S.x/1000*250);
 }
@@ -329,7 +354,8 @@ function renderBoard(hl){
     li.appendChild(rk);li.appendChild(ini);li.appendChild(sc);li.appendChild(tm);ol.appendChild(li);
   });
   document.getElementById('boardNote').textContent=(remote.ok?
-    'GEMEINSAME TOP 10 FÜR ALLE SPIELER':'TOP 10 AUF DIESEM GERÄT')+' · PUNKTE = SCHNITT × 1000 + RESTHÖHE';
+    'GEMEINSAME TOP 10 FÜR ALLE SPIELER':'TOP 10 AUF DIESEM GERÄT')+
+    (WX[wx].endless?' · PUNKTE = 250 × KM':' · PUNKTE = SCHNITT × 1000 + RESTHÖHE');
 }
 function submitLocal(ini,sc,t){
   var a=loadHS();a.push({ini:ini,sc:sc,t:t});
@@ -366,6 +392,11 @@ function finish(ok){
     document.getElementById('ovTitle').textContent='ZIEL! '+sc.toLocaleString('de-DE')+' PUNKTE';
     document.getElementById('ovText').textContent='Zeit '+fmtT(S.t)+', Schnitt '+de(avg,1)+' km/h, Ankunftshöhe '+Math.round(S.h)+' m.'+(S.h>300?' Die Resthöhe hättest du in Fahrt umsetzen können.':'');
     buzz(70);
+  }else if(WX[wx].endless){
+    var tot=(S.lap*COURSE+S.x)/1000;
+    document.getElementById('ovTitle').textContent='ENDE NACH '+de(tot,1)+' KM — '+sc.toLocaleString('de-DE')+' PUNKTE';
+    document.getElementById('ovText').textContent=(S.lap?S.lap+'× durchs EDXE-Tor und ':'')+'am Ende war der Himmel einfach leer. Weiter kommt hier keiner ohne Kampf.';
+    buzz([80,50,80]);
   }else{
     document.getElementById('ovTitle').textContent='AUSSENLANDUNG — '+sc.toLocaleString('de-DE')+' PUNKTE';
     document.getElementById('ovText').textContent='Außenlandung nach '+de(S.x/1000,1)+' km. Der Rückholer braucht jetzt den Hänger und etwas Geduld.';
@@ -821,7 +852,10 @@ function hud(){
   var u=S.circ?'none':'';if(hudCache.vu!==u){hudCache.vu=u;document.getElementById('iV').lastChild.style.display=u}
   setTxt('iVario',(S.vario>=0?'+':'')+de(S.vario,1));
   setCls('varioBox','inst '+(S.vario>0.1?'up':S.vario<-1.5?'down':''));
-  setTxt('iX',de(Math.max(0,COURSE-S.x)/1000,1));
+  var endl=WX[wx].endless;
+  setTxt('iX',endl?de((S.lap*COURSE+S.x)/1000,1):de(Math.max(0,COURSE-S.x)/1000,1));
+  var xl=endl?'Strecke':'Rest';
+  if(hudCache.xl!==xl){hudCache.xl=xl;document.getElementById('iX').parentNode.firstElementChild.textContent=xl}
   setTxt('iT',fmtT(S.t));
   var v=S.circ?110:S.v,need=(COURSE-S.x)/((v/3.6)/polar(v)),diff=S.h-need;
   setTxt('iF',(diff>=0?'+':'')+de(Math.round(diff/10)*10,0));
@@ -841,7 +875,7 @@ function frame(ts){
 
 /* ---------- input ---------- */
 function resumeAudio(){initAudio();if(AC&&AC.state==='suspended'){try{AC.resume()}catch(e){}}}
-function start(){document.getElementById('iniForm').hidden=true;pendingScore=null;reset();S.mode='fly';
+function start(){document.getElementById('iniForm').hidden=true;pendingScore=null;reset();if(DEBUGX)S.x=DEBUGX;S.mode='fly';
   document.getElementById('overlay').hidden=true;resumeAudio();
   try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}}
 document.getElementById('start').addEventListener('click',start);
