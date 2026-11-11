@@ -227,7 +227,7 @@ var WX=[
   {name:'L5 · ULTRA',      seed:555, str:1.15, rad:390, gapMin:4300, gapVar:1500, h0:420,  base:1150,
    info:'ULTRA: 1,15 m/s, Start auf 420 m, Basis 1150 m. Nimm fast jeden Bart mit und kurble ihn aus — sonst liegst du im Acker.'},
   {name:'ENDLESS',         seed:777, endless:true, h0:1200, base:1700,
-   info:'ENDLESS: Runde um Runde über dieselbe Strecke, und mit jedem Kilometer wird die Thermik schwächer und lückenhafter. Wie weit kommst du?'}
+   info:'ENDLESS: Runde um Runde über dieselbe Strecke. Mit jedem Kilometer wird die Thermik schwächer und lückenhafter, und die Basis sinkt Runde um Runde. Wie weit kommst du?'}
 ];
 var BASE=WX[1].base;
 var wx=1,thermals=[],S,keys={},holdCircle=false,holdStage=false,holdSlow=false,holdFast=false,trail=[];
@@ -235,7 +235,9 @@ function makeWeather(lap){
   var P=WX[wx],r=rng(P.seed*1000+1+(lap||0)*97);thermals=[];var x=1800+r()*1500;
   BASE=P.base;
   if(P.endless){
-    /* thermals over the whole lap; strength fades and gaps widen with TOTAL km flown */
+    /* thermals over the whole lap; strength fades and gaps widen with TOTAL km flown.
+       The cloud base drops lap by lap too: 1700 m, 1425, 1150, 875, floor 750. */
+    BASE=Math.max(750,1700-(lap||0)*COURSE/1000*5.5);
     while(x<COURSE-1500){
       var tot=((lap||0)*COURSE+x)/1000;                      /* km since takeoff */
       var str=Math.max(0.95,4.2-tot*0.03);
@@ -295,7 +297,7 @@ function step(rdt){
   var dt=rdt*TIMEX,a=air(S.x),sink=S.circ?0.75:polar(S.v),vxm=S.circ?0:S.v/3.6;
   var vz=a-sink; if(S.h>=BASE&&vz>0)vz=0;
   S.vario+=(vz-S.vario)*Math.min(1,rdt*6);
-  S.h=Math.min(BASE,S.h+vz*dt);S.x+=vxm*dt;S.t+=dt;
+  S.h+=vz*dt;if(vz>0&&S.h>BASE)S.h=BASE;S.x+=vxm*dt;S.t+=dt;
   if(S.circ)S.phase+=rdt*5;
   var lift=a>1.0; if(lift&&!S.inLift)buzz(18); S.inLift=lift;
   var gx=S.circ?S.ccx+Math.sin(S.phase)*CIRCR:S.x,

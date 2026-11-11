@@ -47,8 +47,9 @@ Ziel ohne jede Eingabe, L5 kommt mit allen Bärten mit ~240 m Resthöhe an.
 
 Dazu **ENDLESS**: Runde um Runde über dieselbe Strecke, durchs EDXE-Tor geht es
 in die nächste Runde — und mit jedem geflogenen Kilometer wird die Thermik
-schwächer, enger und lückenhafter (von 4,2 m/s abwärts bis 0,95), bis die
-Außenlandung unvermeidlich ist. Punkte = 250 × Gesamtkilometer, eigene
+schwächer, enger und lückenhafter (von 4,2 m/s abwärts bis 0,95), und die
+Wolkenbasis sinkt Runde um Runde (1700 m → 1425 → 1150 → 875, Untergrenze 750),
+bis die Außenlandung unvermeidlich ist. Punkte = 250 × Gesamtkilometer, eigene
 Highscore-Liste.
 
 ## Highscores
