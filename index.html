@@ -670,8 +670,10 @@ function cloudBlob(str,rad,seed){
   for(var i=0;i<n;i++){
     var s=rad*(0.3+r()*0.26)*(grey?0.7:1);
     var m=new THREE.Mesh(new THREE.IcosahedronGeometry(s,1),mat);
-    m.position.set((r()-0.5)*rad*1.7,s*(0.2+r()*0.35)*(grey?0.4:1),(r()-0.5)*rad*1.1);
-    m.scale.set(1+r()*0.5,0.5+r()*0.15,1+r()*0.4);
+    var sy=0.5+r()*0.15;
+    m.scale.set(1+r()*0.5,sy,1+r()*0.4);
+    /* lumps sit ON the base disc: flat cumulus underside, nothing reaches below the base */
+    m.position.set((r()-0.5)*rad*1.7,s*sy,(r()-0.5)*rad*1.1);
     m.rotation.y=r()*3.14;g2.add(m);
   }
   /* bright cauliflower tops */
@@ -818,7 +820,7 @@ var camPos=new THREE.Vector3(-260,1340,420),camAim=new THREE.Vector3(300,1200,0)
 function updateCamera(rdt){
   var px=glider.position.x,py=glider.position.y,pz=glider.position.z;
   /* mostly behind the glider, zoomed out: keeps it near centre even while circling in a narrow portrait FOV */
-  var want=new THREE.Vector3(px-760,Math.min(BASE+420,py+240),pz+340);
+  var want=new THREE.Vector3(px-760,Math.min(BASE-40,py+240),pz+340); /* never inside the clouds */
   var aim=new THREE.Vector3(px+500,py,pz-30);
   if(DEBUGCAM){want.set(px-90,py+28,pz+70);aim.set(px+60,py-4,pz)}
   var kk=Math.min(1,rdt*2.2);
